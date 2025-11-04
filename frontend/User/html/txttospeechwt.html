@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinguaLens — Text to Speech (with Translation)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://js.puter.com/v2/"></script>
+  <style>
+    :root {
+      --primary: #4a6fa5;
+      --primary-light: #6b8cbc;
+      --primary-dark: #3a5984;
+      --secondary: #48bb78;
+      --secondary-dark: #38a169;
+      --accent: #9f7aea;
+      --light-bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #2d3748;
+      --text-light: #718096;
+      --border: #e2e8f0;
+      --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 1000px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      background: var(--card-bg);
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+    }
+
+    /* Header styles */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      color: white;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      font-size: 24px;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .header-subtitle {
+      font-size: 15px;
+      opacity: 0.9;
+    }
+
+    .history-btn {
+      background: var(--secondary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      white-space: nowrap;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-btn:hover {
+      background: var(--secondary-dark);
+      transform: translateY(-2px);
+    }
+
+    /* Body layout */
+    .body {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+    }
+
+    /* Left panel - text input */
+    .left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .input-group textarea {
+      width: 100%;
+      height: 260px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      font-size: 15px;
+      resize: none;
+      transition: var(--transition);
+      font-family: inherit;
+      line-height: 1.5;
+    }
+
+    .input-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+    }
+
+    .char-count {
+      margin-top: 8px;
+      color: var(--text-light);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    /* Right panel - controls */
+    .right {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .control-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      outline: none;
+      background: white;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .control-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+    }
+
+    .speak-btn {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      border: none;
+      padding: 14px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .speak-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      transform: translateY(-2px);
+    }
+
+    .speak-btn:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-style: italic;
+      color: var(--text);
+      min-height: 24px;
+    }
+
+    .loading {
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    /* Translated text output */
+    .translated-output {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--light-bg);
+      min-height: 80px;
+      white-space: pre-wrap;
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.5;
+      transition: var(--transition);
+    }
+
+    .translated-output.show {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Quick language buttons */
+    .quick-lang-btn:hover {
+      background: #f7fafc;
+      border-color: #4a6fa5;
+    }
+
+    .sample-text-btn:hover {
+      background: #edf2f7;
+      border-color: #4a6fa5;
+    }
+
+    /* Responsive design */
+    @media (max-width: 860px) {
+      .body {
+        grid-template-columns: 1fr;
+      }
+      
+      .right {
+        order: 2;
+      }
+      
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .history-btn {
+        align-self: stretch;
+        text-align: center;
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      
+      .card {
+        border-radius: 10px;
+      }
+      
+      .header, .body {
+        padding: 16px;
+      }
+      
+      .header h2 {
+        font-size: 20px;
+      }
+      
+      .header-subtitle {
+        font-size: 14px;
+      }
+    }
+
+    /* Language dropdown styling */
+    .language-select {
+      position: relative;
+    }
+
+    .language-select::after {
+      content: "▼";
+      font-size: 12px;
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--text-light);
+    }
+
+    /* Additional styling for better UX */
+    .info-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--text-light);
+      color: white;
+      text-align: center;
+      line-height: 16px;
+      font-size: 12px;
+      margin-left: 6px;
+      cursor: help;
+    }
+
+    .engine-info {
+      font-size: 13px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    .feature-highlights {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-light);
+    }
+
+    .feature i {
+      color: var(--primary);
+    }
+
+    .language-count {
+      background: var(--accent);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="header-content">
+        <div class="logo">
+          <i class="fas fa-language logo-icon"></i>
+          <h2>LinguaLens — Text to Speech <span class="language-count">100+ Languages</span></h2>
+        </div>
+        <div class="header-subtitle">Translate text and convert to speech in 100+ languages with AI-powered voices</div>
+      </div>
+      <button class="history-btn" onclick="viewHistory()">
+        <i class="fas fa-history"></i> View TTS History
+      </button>
+    </div>
+
+    <div class="body">
+      <div class="left">
+        <div class="input-group">
+          <label for="inputText">
+            <i class="fas fa-font"></i> Input Text (Any Language)
+          </label>
+          <textarea id="inputText" maxlength="5000" placeholder="Type or paste text here in any language (e.g., Japanese, French, Arabic). Press Ctrl+Enter to speak."></textarea>
+          <div class="char-count" id="charCount">0/5000</div>
+        </div>
+        
+        <div class="feature-highlights">
+          <div class="feature">
+            <i class="fas fa-bolt"></i> Fast Translation
+          </div>
+          <div class="feature">
+            <i class="fas fa-microphone-alt"></i> Natural Voices
+          </div>
+          <div class="feature">
+            <i class="fas fa-globe"></i> 100+ Languages
+          </div>
+          <div class="feature">
+            <i class="fas fa-history"></i> Save History
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="control-group">
+          <label for="targetLang">
+            <i class="fas fa-volume-up"></i> Speak in (Target Language)
+          </label>
+          <div class="language-select">
+            <select id="targetLang">
+              <option value="en">English</option>
+              <!-- More options will be populated by JavaScript -->
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="engineSelect">
+            <i class="fas fa-cog"></i> Voice Engine
+          </label>
+          <div class="language-select">
+            <select id="engineSelect">
+              <option value="standard">Standard Engine</option>
+              <option value="neural">Neural Engine</option>
+              <option value="generative">Generative Engine</option>
+            </select>
+          </div>
+          <div class="engine-info">
+            Standard: Basic voices | Neural: More natural | Generative: AI-powered
+          </div>
+        </div>
+
+        <div class="control-group">
+          <button id="speakBtn" class="speak-btn">
+            <i class="fas fa-play-circle"></i> Speak (translate → speak)
+          </button>
+        </div>
+
+        <div class="control-group">
+          <div id="loading" class="status loading" style="display:none;">
+            <i class="fas fa-spinner fa-spin"></i> Processing...
+          </div>
+          <div id="info" class="status"></div>
+        </div>
+        
+        <!-- Translated text output -->
+        <div id="translatedOutput" class="translated-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Function to navigate to history page
+    function viewHistory() {
+      window.location.href = 'txttospeechhistory.html';
+    }
+  </script>
+  
+  <script src="../js/txttospeechwt.js"></script>
+</body>
+</html>

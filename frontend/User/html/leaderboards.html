@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinguaLens - Leaderboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-50%) translateX(-5px);
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 14px 28px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #4facfe;
+            border-color: white;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .time-filter {
+            display: none;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            color: #333;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .time-filter:hover {
+            border-color: #4facfe;
+            box-shadow: 0 3px 10px rgba(79, 172, 254, 0.2);
+        }
+
+        .time-filter.show {
+            display: inline-block;
+        }
+
+        .leaderboard-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 35px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .leaderboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e3f2fd;
+        }
+
+        .leaderboard-title {
+            font-size: 2rem;
+            color: #333;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .refresh-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 15px;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .leaderboard-table th {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 700;
+            color: #1976d2;
+            border-bottom: 3px solid #90caf9;
+            font-size: 1rem;
+        }
+
+        .leaderboard-table td {
+            padding: 18px 15px;
+            border-bottom: 1px solid #e3f2fd;
+            transition: background 0.2s ease;
+        }
+
+        .leaderboard-table tr:hover {
+            background: #f0f8ff;
+        }
+
+        .rank {
+            font-weight: bold;
+            font-size: 1.3rem;
+            text-align: center;
+            width: 80px;
+        }
+
+        .rank-1 { 
+            color: #FFD700;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .rank-2 { 
+            color: #C0C0C0;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .rank-3 { 
+            color: #CD7F32;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(79, 172, 254, 0.3);
+        }
+
+        .user-details .name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.05rem;
+        }
+
+        .user-details .email {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .activities, .center {
+            text-align: center;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.2rem;
+        }
+
+        .member-since {
+            text-align: right;
+            color: #666;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .language-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .flag-icon {
+            font-size: 1.8rem;
+        }
+
+        .language-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .language-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.05rem;
+        }
+
+        .language-code {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .engine-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .loading, .error, .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            color: #e74c3c;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pagination span {
+            color: #333;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .back-btn {
+                position: relative;
+                margin-bottom: 15px;
+                transform: none;
+            }
+
+            .back-btn:hover {
+                transform: translateX(-5px);
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .tab-btn, .time-filter {
+                width: 100%;
+            }
+            
+            .leaderboard-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .leaderboard-table {
+                font-size: 0.9rem;
+            }
+            
+            .member-since {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="../html/home.html" class="back-btn">
+                ← Back to Home
+            </a>
+            <h1>🏆 LinguaLens Leaderboard</h1>
+            <p>Track performance and discover top contributors</p>
+        </div>
+
+        <div class="user-stats" id="userStats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalUsers">-</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="newUsers7Days">-</div>
+                <div class="stat-label">New Users (7 Days)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="newUsers30Days">-</div>
+                <div class="stat-label">New Users (30 Days)</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="tab-btn active" data-type="overall">📊 Overall Ranking</button>
+            <button class="tab-btn" data-type="timeframe">📅 Time-based</button>
+            <button class="tab-btn" data-type="engagement">🎯 Engagement Levels</button>
+            <button class="tab-btn" data-type="languages">🌍 Language Usage</button>
+            <button class="tab-btn" data-type="tts-engines">🔊 TTS Engines</button>
+            
+            <select class="time-filter" id="timeFilter">
+                <option value="weekly">This Week</option>
+                <option value="monthly">This Month</option>
+            </select>
+        </div>
+
+        <div class="leaderboard-container">
+            <div class="leaderboard-header">
+                <div class="leaderboard-title" id="leaderboardTitle">Overall Leaderboard</div>
+                <button class="refresh-btn" id="refreshBtn">🔄 Refresh</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="leaderboard-table">
+                    <thead id="tableHead">
+                        <tr>
+                            <th>Rank</th>
+                            <th>User</th>
+                            <th class="center">Activities</th>
+                            <th>Member Since</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTable">
+                        <tr><td colspan="4" class="loading">Loading leaderboard data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevPage">← Previous</button>
+                <span id="pageInfo">Page 1 of 1</span>
+                <button id="nextPage">Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/leaderboard.js"></script>
+</body>
+</html>

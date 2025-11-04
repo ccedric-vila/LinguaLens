@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Picture to Text Translator | LinguaLens</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .main-container {
+      width: 95%;
+      max-width: 1400px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 15px 40px rgba(33, 150, 243, 0.2);
+      border: 3px solid #2196F3;
+      overflow: hidden;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .container {
+      display: flex;
+      min-height: 700px;
+    }
+
+    .left-panels {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 30px;
+      background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+      border-right: 2px solid #E3F2FD;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+    }
+
+    .left-panel, .right-panel {
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .left-panel {
+      flex: 1;
+      background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+      border-right: 2px solid #E3F2FD;
+      min-width: 400px;
+      position: relative;
+    }
+
+    .right-panel {
+      flex: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      min-width: 500px;
+      background: white;
+    }
+
+    /* Interactive Panels */
+    .interactive-panel {
+      background: var(--bg-primary);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transition: all 0.3s ease;
+      border: 2px solid var(--border);
+      max-height: 0;
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    .interactive-panel.active {
+      max-height: 400px;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .panel-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-content {
+      padding: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .panel-toggle {
+      background: white;
+      border: 2px solid #E3F2FD;
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      color: #0D47A1;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
+    }
+
+    .panel-toggle:hover {
+      border-color: #2196F3;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(33, 150, 243, 0.15);
+    }
+
+    .panel-toggle.active {
+      background: #E3F2FD;
+      border-color: #2196F3;
+      color: #0D47A1;
+    }
+
+    .panel-toggle i {
+      font-size: 18px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Header Section */
+    .app-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #E3F2FD;
+    }
+
+    .app-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0D47A1;
+      margin-bottom: 8px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .app-subtitle {
+      font-size: 16px;
+      color: #1976D2;
+      font-weight: 500;
+    }
+
+    /* Upload Section */
+    .upload-section {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .arrow {
+      font-size: 80px;
+      color: #2196F3;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      filter: drop-shadow(0 4px 8px rgba(33, 150, 243, 0.3));
+    }
+
+    .arrow:hover {
+      transform: scale(1.1) translateY(5px);
+      color: #1976D2;
+    }
+
+    .arrow.selected {
+      color: #0D47A1;
+      transform: scale(1.05);
+    }
+
+    /* Image Preview */
+    #imagePreview {
+      display: none;
+      margin: 20px 0;
+      text-align: center;
+      animation: slideIn 0.4s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #previewImage {
+      max-width: 100%;
+      max-height: 250px;
+      border-radius: 12px;
+      border: 3px solid #2196F3;
+      box-shadow: 0 8px 25px rgba(33, 150, 243, 0.2);
+    }
+
+    #removePreview {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #e53e3e 0%, #c62828 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(229, 62, 62, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    #removePreview:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(229, 62, 62, 0.4);
+    }
+
+    /* Form Styles */
+    #uploadForm {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    #imageInput {
+      display: none;
+    }
+
+    .language-section {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      border: 2px solid #BBDEFB;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .language-section:hover {
+      border-color: #2196F3;
+      box-shadow: 0 6px 20px rgba(33, 150, 243, 0.15);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .language-label {
+      font-weight: 600;
+      color: #0D47A1;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .language-select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #E3F2FD;
+      border-radius: 10px;
+      font-size: 15px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .language-select:focus {
+      outline: none;
+      border-color: #2196F3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .language-select option[data-bookmarked="true"] {
+      background-color: #fff9e6;
+      font-weight: 600;
+      color: #0D47A1;
+    }
+
+    .language-select option:disabled {
+      background: #e2e8f0;
+      color: #718096;
+      text-align: center;
+    }
+
+    /* Submit Button */
+    #submitBtn {
+      padding: 16px 30px;
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      border: none;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(33, 150, 243, 0.3);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    #submitBtn:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(33, 150, 243, 0.4);
+    }
+
+    #submitBtn:active {
+      transform: translateY(-1px);
+    }
+
+    #submitBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Right Panel Header */
+    .right-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 15px;
+    }
+
+    .language-info-btn {
+      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+      font-weight: 600;
+    }
+
+    .language-info-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+    }
+
+    .history-btn {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .history-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+    }
+
+    .history-btn img {
+      width: 24px;
+      height: 24px;
+      filter: brightness(0) invert(1);
+    }
+
+    /* Result Sections */
+    .result-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    .result-box {
+      background: white;
+      border: 2px solid #E3F2FD;
+      border-radius: 15px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.08);
+    }
+
+    .result-box:hover {
+      border-color: #BBDEFB;
+      box-shadow: 0 6px 20px rgba(33, 150, 243, 0.12);
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #0D47A1;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-label::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #2196F3;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .result-content {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #E3F2FD;
+      border-radius: 10px;
+      padding: 20px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Roboto Mono', monospace;
+      min-height: 150px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .objects-content {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #E3F2FD;
+      border-radius: 10px;
+      padding: 20px;
+      overflow-y: auto;
+      min-height: 150px;
+    }
+
+    /* Objects Detection Styles */
+    .objects-description {
+      font-style: italic;
+      color: #546E7A;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: linear-gradient(135deg, #e8f4fd 0%, #d4e7fa 100%);
+      border-radius: 10px;
+      border-left: 4px solid #2196F3;
+      font-size: 14px;
+    }
+
+    .objects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .object-card {
+      background: white;
+      border: 2px solid #E3F2FD;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
+    }
+
+    .object-card:hover {
+      transform: translateY(-5px);
+      border-color: #2196F3;
+      box-shadow: 0 8px 25px rgba(33, 150, 243, 0.2);
+    }
+
+    .object-name {
+      font-weight: 600;
+      color: #0D47A1;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .object-confidence {
+      color: #4CAF50;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e8f5e8;
+      padding: 4px 8px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+
+    .no-objects {
+      text-align: center;
+      color: #90A4AE;
+      font-style: italic;
+      padding: 30px;
+      font-size: 15px;
+    }
+
+    /* Copy Buttons */
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+    }
+
+    .copy-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+    }
+
+    .copy-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .copy-success {
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%) !important;
+    }
+
+    /* Info Section */
+    .info-section {
+      background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+      padding: 20px;
+      border-radius: 15px;
+      border: 2px solid #BBDEFB;
+      font-size: 14px;
+      color: #37474F;
+    }
+
+    .info-item {
+      margin-bottom: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #E3F2FD;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    /* Definition Container - FIXED: Removed duplicate, only appears when needed */
+    .definition-container {
+      margin-top: 10px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+      border: 2px solid #BBDEFB;
+      border-radius: 15px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
+      display: none; /* Hidden by default */
+    }
+
+    .definition-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .definition-header h3 {
+      font-size: 16px;
+      color: #0D47A1;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .definition-status {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      background: #E3F2FD;
+      color: #1976D2;
+      font-weight: 600;
+    }
+
+    .definition-status.ready {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .definition-status.loading {
+      background: #2196F3;
+      color: white;
+    }
+
+    .definition-status.limited {
+      background: #FF9800;
+      color: white;
+    }
+
+    .selected-word {
+      font-size: 20px;
+      font-weight: 600;
+      color: #0D47A1;
+      margin-bottom: 15px;
+      padding: 10px 0;
+      border-bottom: 2px solid #2196F3;
+    }
+
+    .definition-content {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #37474F;
+      min-height: 40px;
+    }
+
+    .definition-placeholder {
+      color: #90A4AE;
+      font-style: italic;
+    }
+
+    /* Clickable words */
+    .clickable-word {
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .clickable-word:hover {
+      background-color: #2196F3;
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .clickable-word.loading {
+      background-color: #FFD700;
+      color: #0D47A1;
+    }
+
+    .clickable-word.defined {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    /* Grammar Panel Styles */
+    .grammar-status {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: #E3F2FD;
+      color: #1976D2;
+      font-weight: 600;
+    }
+
+    .grammar-status.ready {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .grammar-status.loading {
+      background: #2196F3;
+      color: white;
+    }
+
+    .grammar-status.error {
+      background: #e53e3e;
+      color: white;
+    }
+
+    .grammar-suggestion {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 3px solid #2196F3;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
+    }
+
+    .original-text {
+      color: #e53e3e;
+      text-decoration: line-through;
+      margin-right: 6px;
+      font-weight: 500;
+    }
+
+    .corrected-text {
+      color: #4CAF50;
+      font-weight: 600;
+    }
+
+    .grammar-explanation {
+      font-size: 12px;
+      color: #546E7A;
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    .grammar-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
+
+    .apply-grammar-btn {
+      padding: 8px 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .apply-grammar-btn:hover {
+      background: #45a049;
+      transform: translateY(-1px);
+    }
+
+    .ignore-grammar-btn {
+      padding: 8px 16px;
+      background: #90A4AE;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ignore-grammar-btn:hover {
+      background: #78909C;
+    }
+
+    /* Highlight for grammar issues in translation */
+    .grammar-issue {
+      background-color: #fed7d7;
+      padding: 2px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 1px dashed #e53e3e;
+    }
+
+    .grammar-issue:hover {
+      background-color: #feb2b2;
+    }
+
+    /* Summary Panel Styles */
+    .summary-item {
+      margin-bottom: 12px;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      border-left: 4px solid #2196F3;
+    }
+
+    .summary-label {
+      font-weight: 600;
+      color: #0D47A1;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .summary-value {
+      color: #37474F;
+      font-size: 14px;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(33, 150, 243, 0.3);
+      border-radius: 50%;
+      border-top-color: #2196F3;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Country Info Panel */
+    .country-info-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 380px;
+      max-height: 80vh;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      overflow: hidden;
+      border: 3px solid #2196F3;
+      animation: slideInCenter 0.4s ease-out;
+    }
+
+    @keyframes slideInCenter {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    .country-info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      color: white;
+    }
+
+    .country-info-header h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+      border-radius: 50%;
+    }
+
+    .close-btn:hover {
+      transform: scale(1.2);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .country-content {
+      padding: 20px;
+      max-height: calc(80vh - 80px);
+      overflow-y: auto;
+    }
+
+    .country-flag {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 2px solid #E3F2FD;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .country-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: #0D47A1;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .country-details {
+      font-size: 14px;
+      color: #37474F;
+      line-height: 1.6;
+    }
+
+    .country-detail-item {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid #E3F2FD;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      min-width: 120px;
+      color: #1976D2;
+    }
+
+    .country-selector {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+      padding-bottom: 15px;
+      overflow-x: auto;
+    }
+
+    .country-option {
+      flex-shrink: 0;
+      width: 45px;
+      height: 35px;
+      border: 2px solid #E3F2FD;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .country-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .country-option:hover {
+      border-color: #2196F3;
+      transform: scale(1.05);
+    }
+
+    .country-option.active {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.3);
+    }
+
+    /* AI Content Styles */
+    .ai-loading {
+      color: #2196F3;
+      font-style: italic;
+      text-align: center;
+      padding: 15px;
+      font-size: 14px;
+    }
+
+    .ai-error {
+      color: #e53e3e;
+      text-align: center;
+      padding: 15px;
+      font-size: 14px;
+    }
+
+    .ai-content {
+      background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+      padding: 15px;
+      border-radius: 10px;
+      border-left: 4px solid #2196F3;
+      margin-top: 15px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* CSS Variables */
+    :root {
+      --primary: #2196F3;
+      --primary-dark: #1976D2;
+      --primary-light: #E3F2FD;
+      --bg-primary: #FFFFFF;
+      --border: #E2E8F0;
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .container {
+        flex-direction: column;
+      }
+      .left-panels {
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        border-right: none;
+        border-bottom: 2px solid #E3F2FD;
+      }
+      .panel-toggle {
+        flex: 1;
+        justify-content: center;
+      }
+      .main-content {
+        flex-direction: column;
+      }
+      .left-panel, .right-panel {
+        border-right: none;
+        border-bottom: 2px solid #E3F2FD;
+        width: 100%;
+        min-width: auto;
+      }
+      .left-panel {
+        padding-bottom: 30px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      .main-container {
+        width: 100%;
+        border-radius: 15px;
+      }
+      .left-panels {
+        flex-direction: column;
+        padding: 20px;
+      }
+      .left-panel, .right-panel {
+        padding: 20px;
+      }
+      .arrow {
+        font-size: 60px;
+      }
+      .objects-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      }
+      .country-info-panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transform: none;
+        width: 100%;
+        max-height: 70vh;
+        border-radius: 20px 20px 0 0;
+      }
+      .country-content {
+        max-height: calc(70vh - 80px);
+      }
+      .header-buttons {
+        gap: 10px;
+      }
+      .language-info-btn, .history-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-title {
+        font-size: 24px;
+      }
+      .result-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .copy-btn {
+        align-self: flex-end;
+      }
+      .objects-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      }
+      .panel-toggle {
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <div class="container">
+      <!-- Left Interactive Panels -->
+      <div class="left-panels">
+        <div class="panel-toggle" id="toggleObjects">
+          <i class="fas fa-search"></i>
+          <span>Detected Objects</span>
+        </div>
+        
+        <div class="panel-toggle" id="toggleGrammar">
+          <i class="fas fa-spell-check"></i>
+          <span>Grammar Checker</span>
+        </div>
+        
+        <div class="panel-toggle" id="toggleSummary">
+          <i class="fas fa-chart-bar"></i>
+          <span>Result Summary</span>
+        </div>
+        
+        <!-- Objects Panel -->
+        <div id="objectsPanel" class="interactive-panel">
+          <div class="panel-header">
+            <h3><i class="fas fa-search"></i> Detected Objects</h3>
+          </div>
+          <div class="panel-content">
+            <div id="objectsPanelContent">
+              <div class="no-objects">No objects detected yet</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Grammar Panel -->
+        <div id="grammarPanel" class="interactive-panel">
+          <div class="panel-header">
+            <h3><i class="fas fa-spell-check"></i> Grammar Checker</h3>
+            <span id="grammarPanelStatus" class="grammar-status">Ready</span>
+          </div>
+          <div class="panel-content">
+            <div id="grammarPanelContent" class="definition-content">
+              <span class="definition-placeholder">Grammar suggestions will appear here after translation</span>
+            </div>
+            <div id="grammarPanelActions" class="grammar-actions" style="display: none;">
+              <button id="applyGrammarPanelBtn" class="apply-grammar-btn">
+                <i class="fas fa-check"></i> Apply
+              </button>
+              <button id="ignoreGrammarPanelBtn" class="ignore-grammar-btn">
+                <i class="fas fa-times"></i> Ignore
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Summary Panel -->
+        <div id="summaryPanel" class="interactive-panel">
+          <div class="panel-header">
+            <h3><i class="fas fa-chart-bar"></i> Result Summary</h3>
+          </div>
+          <div class="panel-content">
+            <div id="summaryPanelContent">
+              <div class="summary-item">
+                <div class="summary-label">Processing Time</div>
+                <div class="summary-value">-</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Text Length</div>
+                <div class="summary-value">-</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Objects Found</div>
+                <div class="summary-value">-</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Language</div>
+                <div class="summary-value">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="main-content">
+        <!-- Left Panel - Upload & Controls -->
+        <div class="left-panel">
+          <div class="app-header">
+            <h1 class="app-title">
+              <i class="fas fa-camera"></i> Picture to Text Translator
+            </h1>
+            <p class="app-subtitle">Extract, translate, and analyze text from images with AI-powered object detection</p>
+          </div>
+
+          <div class="upload-section">
+            <div class="arrow" id="arrow">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            
+            <!-- Image Preview -->
+            <div id="imagePreview" style="display: none;">
+              <img id="previewImage" src="#" alt="Image preview">
+              <button type="button" id="removePreview">
+                <i class="fas fa-trash-alt"></i> Remove Image
+              </button>
+            </div>
+            
+            <form id="uploadForm">
+              <input type="file" name="image" id="imageInput" accept="image/*" required />
+              
+              <div class="language-section">
+                <div class="section-header">
+                  <span class="language-label">
+                    <i class="fas fa-globe"></i> Translate to:
+                  </span>
+                </div>
+                <select id="languageSelect" class="language-select"></select>
+              </div>
+
+              <button type="submit" id="submitBtn">
+                <i class="fas fa-rocket"></i> Upload, Extract & Translate
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Right Panel - Results & Info -->
+        <div class="right-panel">
+          <div class="right-header">
+            <div class="header-buttons">
+              <button class="language-info-btn" title="Show Language & Country Info">
+                <i class="fas fa-info-circle"></i> Language Info
+              </button>
+            </div>
+
+            <button class="history-btn" onclick="window.location.href='picturetotexthistory.html'" title="View History">
+              <i class="fas fa-history"></i> History
+            </button>
+          </div>
+
+          <div class="result-section">
+            <!-- Extracted Text -->
+            <div class="result-box">
+              <div class="result-header">
+                <div class="result-label">
+                  <i class="fas fa-file-alt"></i> Extracted Text
+                </div>
+                <button id="copyExtractedBtn" class="copy-btn" disabled>
+                  <i class="fas fa-copy"></i> Copy
+                </button>
+              </div>
+              <div id="extractedResult" class="result-content">Extracted text will appear here...</div>
+            </div>
+
+            <!-- Translated Text -->
+            <div class="result-box">
+              <div class="result-header">
+                <div class="result-label">
+                  <i class="fas fa-globe-americas"></i> Translated Text
+                </div>
+                <button id="copyTranslatedBtn" class="copy-btn" disabled>
+                  <i class="fas fa-copy"></i> Copy
+                </button>
+              </div>
+              <div id="translatedResult" class="result-content">Translated text will appear here...</div>
+            </div>
+
+            <!-- Detected Objects -->
+            <div class="result-box">
+              <div class="result-header">
+                <div class="result-label">
+                  <i class="fas fa-search"></i> Detected Objects
+                </div>
+                <button id="copyObjectsBtn" class="copy-btn" disabled>
+                  <i class="fas fa-copy"></i> Copy
+                </button>
+              </div>
+              <div id="objectsResult" class="objects-content">Detected objects will appear here...</div>
+            </div>
+          </div>
+
+          <!-- Definition Container - FIXED: Now only appears when needed -->
+          <div id="definitionContainer" class="definition-container" style="display: none;">
+            <div class="definition-header">
+              <h3><i class="fas fa-book"></i> Word Definition</h3>
+              <span id="definitionStatus" class="definition-status"></span>
+            </div>
+            <div id="selectedWord" class="selected-word"></div>
+            <div id="definitionContent" class="definition-content">
+              <span class="definition-placeholder">Click any word in the translation to see its definition</span>
+            </div>
+          </div>
+
+          <!-- Info Section -->
+          <div class="info-section">
+            <div class="info-item" id="processingTime"></div>
+            <div class="info-item" id="languageInfo"></div>
+            <div class="info-item" id="confidenceInfo"></div>
+            <div class="info-item" id="objectsInfo"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Country Info Panel -->
+  <div id="countryInfoPanel" class="country-info-panel" style="display: none;">
+    <div class="country-info-header">
+      <h3><i class="fas fa-map-marked-alt"></i> Language & Country Info</h3>
+      <button id="closeCountryPanel" class="close-btn">×</button>
+    </div>
+    <div id="countryContent" class="country-content">
+      <!-- Dynamic content will be loaded here -->
+    </div>
+  </div>
+
+  <script src="https://js.puter.com/v2/"></script>
+  <script src="../js/pictureToTextTranslator.js"></script>
+</body>
+</html>

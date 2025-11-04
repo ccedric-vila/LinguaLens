@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OCR Powered Image to Text & Object Detection</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      display: flex;
+      width: 95%;
+      max-width: 1200px;
+      background: white;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    .left-panel, .right-panel {
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .left-panel {
+      flex: 1;
+      border-right: 1px solid #e1e5e9;
+      background: #f8f9fa;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .right-panel {
+      flex: 1.2;
+      background: white;
+    }
+
+    .upload-area {
+      text-align: center;
+      padding: 40px 20px;
+      border: 3px dashed #007bff;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .upload-area:hover {
+      border-color: #0056b3;
+      background: #f0f8ff;
+    }
+
+    .upload-area.dragover {
+      border-color: #28a745;
+      background: #f0fff4;
+    }
+
+    .upload-icon {
+      font-size: 60px;
+      color: #007bff;
+      margin-bottom: 15px;
+    }
+
+    .upload-text {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .upload-subtext {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    #imagePreview {
+      max-width: 100%;
+      max-height: 250px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      display: none;
+    }
+
+    .language-selector {
+      margin: 20px 0;
+      width: 100%;
+    }
+
+    .language-selector label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .language-selector select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      transition: border-color 0.3s ease;
+    }
+
+    .language-selector select:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    #selectImageBtn {
+      flex: 1;
+      padding: 12px;
+      background: linear-gradient(135deg, #28a745, #218838);
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #selectImageBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+    }
+
+    #uploadBtn {
+      flex: 1;
+      padding: 12px;
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #uploadBtn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    }
+
+    #uploadBtn:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .results-tabs {
+      display: flex;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .tab.active {
+      border-bottom-color: #007bff;
+      color: #007bff;
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    #textResult {
+      width: 100%;
+      height: 200px;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 15px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Courier New', monospace;
+      line-height: 1.5;
+    }
+
+    .objects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .object-card {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .object-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .object-name {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .object-confidence {
+      color: #28a745;
+      font-size: 12px;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 16px;
+      background: #28a745;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .copy-btn:hover:not(:disabled) {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+
+    .copy-btn:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .copy-success {
+      background: #17a2b8 !important;
+    }
+
+    .processing-info {
+      background: #e7f3ff;
+      border: 1px solid #b3d9ff;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 123, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #007bff;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .history-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #6c757d;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .history-btn:hover {
+      background: #545b62;
+    }
+
+    .language-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      .left-panel {
+        border-right: none;
+        border-bottom: 1px solid #e1e5e9;
+      }
+      .objects-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      }
+      .button-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left Panel - Upload -->
+    <div class="left-panel">
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">Drop your image here or click to browse</div>
+        <div class="upload-subtext">Supports JPG, PNG, GIF • Max 10MB</div>
+        <input type="file" id="imageInput" accept="image/*" style="display: none;" />
+        <img id="imagePreview" alt="Image preview" />
+      </div>
+
+      <div class="language-selector">
+        <label for="languageSelect">OCR Language:</label>
+        <select id="languageSelect">
+          <option value="all_languages">All Languages (Auto-detect)</option>
+          <option value="english">English</option>
+          <option value="japanese">Japanese</option>
+          <option value="chinese_simp">Chinese Simplified</option>
+          <option value="chinese_trad">Chinese Traditional</option>
+          <option value="korean">Korean</option>
+          <option value="spanish">Spanish</option>
+          <option value="french">French</option>
+          <option value="german">German</option>
+          <option value="italian">Italian</option>
+          <option value="portuguese">Portuguese</option>
+          <option value="russian">Russian</option>
+          <option value="arabic">Arabic</option>
+          <option value="hindi">Hindi</option>
+        </select>
+        <div class="language-info">Supports 15+ languages including CJK characters</div>
+      </div>
+
+      <div class="button-group">
+        <button id="selectImageBtn">Select Image</button>
+        <button id="uploadBtn" disabled>Analyze Image</button>
+      </div>
+    </div>
+
+    <!-- Right Panel - Results -->
+    <div class="right-panel">
+      <button class="history-btn" onclick="window.location.href='/history'">
+        📊 History
+      </button>
+
+      <h2 style="margin-top: 0; color: #333;">Advanced Image Analysis</h2>
+
+      <!-- Processing Info -->
+      <div class="processing-info" id="processingInfo" style="display: none;">
+        <div class="info-item">
+          <span>Status:</span>
+          <span id="statusText">Processing...</span>
+        </div>
+        <div class="info-item">
+          <span>Time:</span>
+          <span id="timeText">-</span>
+        </div>
+        <div class="info-item">
+          <span>OCR Engine:</span>
+          <span id="engineText">-</span>
+        </div>
+        <div class="info-item">
+          <span>Language:</span>
+          <span id="languageText">-</span>
+        </div>
+        <div class="info-item">
+          <span>Objects Detected:</span>
+          <span id="objectsCount">-</span>
+        </div>
+      </div>
+
+      <!-- Results Tabs -->
+      <div class="results-tabs">
+        <div class="tab active" onclick="switchTab('text')">Extracted Text</div>
+        <div class="tab" onclick="switchTab('objects')">Detected Objects</div>
+        <div class="tab" onclick="switchTab('combined')">Combined View</div>
+      </div>
+
+      <!-- Text Results -->
+      <div class="tab-content active" id="textTab">
+        <div class="result-header">
+          <h3>Extracted Text</h3>
+          <button id="copyTextBtn" class="copy-btn" disabled>
+            📋 Copy Text
+          </button>
+        </div>
+        <pre id="textResult">No text extracted yet. Upload an image to begin analysis.</pre>
+      </div>
+
+      <!-- Objects Results -->
+      <div class="tab-content" id="objectsTab">
+        <div class="result-header">
+          <h3>Detected Objects</h3>
+          <div id="objectsDescription" style="font-style: italic; color: #666;"></div>
+        </div>
+        <div class="objects-grid" id="objectsGrid">
+          <!-- Objects will be dynamically added here -->
+        </div>
+      </div>
+
+      <!-- Combined Results -->
+      <div class="tab-content" id="combinedTab">
+        <div class="result-header">
+          <h3>Complete Analysis</h3>
+          <button id="copyAllBtn" class="copy-btn" disabled>
+            📋 Copy All
+          </button>
+        </div>
+        <pre id="combinedResult">No analysis data available yet.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/picturetotext.js"></script>
+</body>
+</html>
