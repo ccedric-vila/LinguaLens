@@ -1,5 +1,4 @@
-// js/pictureToTextTranslator.js - FIXED VERSION WITH CORRECT ENDPOINT
-
+// js/pictureToTextTranslator.js - ENHANCED VERSION WITH EXTRACTION FEATURES
 // ✅ List of all supported languages by Translatte
 const supportedLanguages = {
     "af": "Afrikaans", "sq": "Albanian", "am": "Amharic", "ar": "Arabic", "hy": "Armenian",
@@ -66,6 +65,13 @@ let processingTime, languageInfo, confidenceInfo, objectsInfo, submitBtn;
 let arrow, imageInput, imagePreview, previewImage, removePreviewBtn;
 let copyExtractedBtn, copyTranslatedBtn, copyObjectsBtn;
 
+// ✅ ADDED: Extraction-specific elements from picturetotext.js
+let uploadArea, selectImageBtn, uploadBtn, languageSelect;
+let statusText, timeText, engineText, languageText, objectsCount;
+let textResult, objectsGrid, objectsDescription, combinedResult;
+let copyTextBtn, copyAllBtn;
+let currentAnalysisData = null;
+
 // Panel state management
 let leftPanelState = {
     objects: false,
@@ -91,6 +97,478 @@ let puterAIAvailable = false;
 let lastCountryRequest = 0;
 const COUNTRY_RATE_LIMIT = 3000;
 
+// ✅ ADDED: Initialize button state from picturetotext.js
+function initializeButtonState() {
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Analyze Image';
+    }
+}
+
+// ✅ ADDED: Select Image button - Opens file explorer
+function setupSelectImageButton() {
+    if (selectImageBtn && imageInput) {
+        selectImageBtn.addEventListener('click', () => {
+            imageInput.click();
+        });
+    }
+}
+
+// ✅ ADDED: Upload area click handler - Also opens file explorer
+function setupUploadArea() {
+    if (uploadArea) {
+        uploadArea.addEventListener('click', () => {
+            if (imageInput) imageInput.click();
+        });
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                if (imageInput) imageInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
+    }
+}
+
+// ✅ FIXED: File input change handler with proper button enabling
+function handleFileSelect() {
+    if (imageInput && imageInput.files.length > 0) {
+        const file = imageInput.files[0];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file (JPEG, PNG, etc.).');
+            resetFileInput();
+            return;
+        }
+        
+        // Validate file size (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File size must be less than 10MB.');
+            resetFileInput();
+            return;
+        }
+        
+        // Show preview and enable button
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            if (previewImage) {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+            }
+            
+            // ✅ FIXED: Enable upload button immediately when image is selected
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Analyze Image';
+                console.log('✅ Upload button enabled - ready to analyze');
+            }
+            
+            // Show image preview container
+            if (imagePreview) {
+                imagePreview.style.display = 'block';
+            }
+            
+            // Update upload area text
+            const uploadText = document.querySelector('.upload-text');
+            const uploadSubtext = document.querySelector('.upload-subtext');
+            
+            if (uploadText) uploadText.textContent = file.name;
+            if (uploadSubtext) uploadSubtext.textContent = `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        console.log('No file selected');
+    }
+}
+// ✅ ADD: Proper file input change listener setup
+function setupFileInputListener() {
+    if (imageInput) {
+        imageInput.addEventListener('change', handleFileSelect);
+        console.log('File input listener set up');
+    }
+}
+// ✅ ADDED: Reset file input function from picturetotext.js
+function resetFileInput() {
+    if (imageInput) imageInput.value = '';
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Analyze Image';
+    }
+    if (previewImage) previewImage.style.display = 'none';
+    
+    const uploadText = document.querySelector('.upload-text');
+    const uploadSubtext = document.querySelector('.upload-subtext');
+    
+    if (uploadText) uploadText.textContent = 'Drop your image here or click to browse';
+    if (uploadSubtext) uploadSubtext.textContent = 'Supports JPG, PNG, GIF • Max 10MB';
+}
+
+// ✅ FIXED: Use proven extraction endpoint and separate extraction/translation
+async function handleUpload() {
+  if (!imageInput || !imageInput.files.length) {
+    alert('Please select an image first.');
+    return;
+  }
+
+  // Disable button during upload
+  if (uploadBtn) {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Processing...';
+  }
+
+  // Reset UI - SEPARATE CONTAINERS
+  resetResults();
+  showProcessing(true);
+  
+  // ✅ CLEAR translation container and disable language dropdown
+  if (translatedResult) translatedResult.textContent = 'Select a language to translate...';
+  if (langSelect) langSelect.disabled = true;
+  if (copyTranslatedBtn) copyTranslatedBtn.disabled = true;
+
+  const formData = new FormData();
+  formData.append('image', imageInput.files[0]);
+  
+  // Get selected language for OCR (not translation)
+  const selectedLanguage = languageSelect ? languageSelect.value : 'all_languages';
+  formData.append('language', selectedLanguage);
+
+  const startTime = Date.now();
+
+  try {
+    if (statusText) statusText.textContent = 'Uploading image...';
+    if (languageText && languageSelect) {
+      languageText.textContent = languageSelect.options[languageSelect.selectedIndex].text;
+    }
+    
+    // ✅ STEP 1: Use PROVEN extraction endpoint (from picturetotext.js)
+    const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    if (!response.ok) {
+      throw new Error(data.error || `Upload failed: ${response.status}`);
+    }
+
+    // Store analysis data
+    currentAnalysisData = data;
+    
+    // Update processing info
+    if (timeText) timeText.textContent = `${elapsed}s`;
+    if (engineText) engineText.textContent = data.ocr?.engine || 'Unknown';
+    if (languageText) languageText.textContent = data.languageUsed || selectedLanguage;
+    if (objectsCount) objectsCount.textContent = data.objects?.count || 0;
+    if (statusText) statusText.textContent = 'Extraction completed successfully';
+    
+    // ✅ STEP 2: Display extraction results ONLY (no translation)
+    displayExtractionResults(data);
+    
+    // ✅ STEP 3: Enable language dropdown for translation
+    if (langSelect) {
+      langSelect.disabled = false;
+      langSelect.style.opacity = '1';
+    }
+    console.log('✅ Extraction complete - Language dropdown enabled for translation');
+    
+  } catch (error) {
+    console.error('Upload error:', error);
+    if (statusText) statusText.textContent = 'Extraction failed';
+    if (timeText) timeText.textContent = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
+    
+    let errorMessage = `Error: ${error.message}\n\n`;
+    
+    if (error.message.includes('Failed to fetch')) {
+      errorMessage += 'Cannot connect to server. Make sure the backend is running on port 3000.';
+    } else if (error.message.includes('404')) {
+      errorMessage += 'Server endpoint not found. Check your API routes.';
+    } else {
+      errorMessage += 'Please try again with a different image.';
+    }
+    
+    if (textResult) textResult.textContent = errorMessage;
+    if (translatedResult) translatedResult.textContent = 'Translation unavailable';
+    
+    // Show error in all result areas
+    if (objectsGrid) objectsGrid.innerHTML = '<div class="object-card">Error during analysis</div>';
+    if (objectsDescription) objectsDescription.textContent = 'Analysis failed - check server connection';
+    if (combinedResult) combinedResult.textContent = errorMessage;
+    
+  } finally {
+    // Re-enable upload button
+    setTimeout(() => {
+      if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Analyze Again';
+      }
+    }, 1000);
+  }
+}
+
+// ✅ ADD: Automatic translation function (from translator.js)
+async function translateTextManually(text, targetLang) {
+    if (!text || text.trim().length === 0) {
+        return { translated: '', detected: 'unknown', success: false };
+    }
+
+    try {
+        console.log('🌍 Manual translation to:', targetLang);
+        
+        // Use the translator endpoint directly
+        const response = await fetch('http://localhost:3000/translator/translate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                text: text, 
+                to: targetLang 
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        console.log('✅ Manual translation successful');
+        return {
+            translated: data.translated || data.text || text,
+            detected: data.detected || 'unknown',
+            success: true
+        };
+    } catch (err) {
+        console.error('❌ Manual translation failed:', err);
+        return {
+            translated: text,
+            detected: 'unknown',
+            error: err.message,
+            success: false
+        };
+    }
+}
+// ✅ FIXED: Reset both containers separately
+function resetResults() {
+    if (textResult) textResult.textContent = 'Processing... Please wait.';
+    if (translatedResult) translatedResult.textContent = 'Waiting for extraction...';
+    if (objectsGrid) objectsGrid.innerHTML = '';
+    if (objectsDescription) objectsDescription.textContent = '';
+    if (combinedResult) combinedResult.textContent = 'Processing...';
+    if (copyTextBtn) copyTextBtn.disabled = true;
+    if (copyTranslatedBtn) copyTranslatedBtn.disabled = true;
+    if (copyAllBtn) copyAllBtn.disabled = true;
+    currentAnalysisData = null;
+    
+    // ✅ Disable language dropdown until extraction completes
+    if (langSelect) {
+        langSelect.disabled = true;
+        langSelect.style.opacity = '0.6';
+    }
+}
+
+// ✅ ADDED: Show processing function from picturetotext.js
+function showProcessing(show) {
+    const processingInfo = document.getElementById('processingInfo');
+    if (processingInfo) {
+        processingInfo.style.display = show ? 'block' : 'none';
+    }
+    if (show) {
+        if (statusText) statusText.textContent = 'Processing...';
+        if (timeText) timeText.textContent = '-';
+        if (engineText) engineText.textContent = '-';
+        if (languageText) languageText.textContent = '-';
+        if (objectsCount) objectsCount.textContent = '-';
+    }
+}
+
+// ✅ FIXED: Only display extraction results, no translation
+// ✅ FIXED: Only display extraction results, no translation
+function displayExtractionResults(data) {
+    // Enable copy buttons for extraction only
+    if (copyTextBtn) copyTextBtn.disabled = false;
+    if (copyAllBtn) copyAllBtn.disabled = false;
+    
+    // ✅ ONLY display text results in extraction containers
+    let extractedText = '';
+    if (data.ocr?.text && data.ocr.text.trim().length > 0) {
+        extractedText = data.ocr.text;
+        if (textResult) textResult.textContent = extractedText;
+    } else {
+        extractedText = 'No text could be extracted from this image.';
+        if (textResult) textResult.textContent = extractedText;
+    }
+    
+    // ✅ ALSO populate extractedResult for backward compatibility
+    if (extractedResult) {
+        extractedResult.textContent = extractedText;
+    }
+    
+    // Display object results (limited to 4)
+    displayExtractionObjects(data.objects);
+    
+    // Display combined results
+    displayCombinedResults(data);
+    
+    // Switch to combined view by default
+    switchTab('combined');
+    
+    // ✅ KEEP translation container separate but show ready message
+    if (translatedResult) {
+        translatedResult.textContent = 'Select a language to translate...';
+    }
+    
+    console.log('✅ Extraction results displayed, ready for translation');
+    console.log('📝 Extracted text length:', extractedText.length);
+}
+
+// ✅ ADDED: Display extraction objects function from picturetotext.js
+function displayExtractionObjects(objectsData) {
+    if (!objectsGrid) return;
+    
+    if (!objectsData || objectsData.count === 0) {
+        objectsGrid.innerHTML = '<div class="object-card">No objects detected</div>';
+        if (objectsDescription) {
+            objectsDescription.textContent = 'No prominent objects were detected in this image.';
+        }
+        return;
+    }
+    
+    // Set description
+    if (objectsDescription) {
+        objectsDescription.textContent = objectsData.description;
+    }
+    
+    // Clear previous objects
+    objectsGrid.innerHTML = '';
+    
+    // Add object cards (limited to 4)
+    objectsData.detected.slice(0, 4).forEach(obj => {
+        const confidencePercent = Math.round(obj.confidence * 100);
+        const objectCard = document.createElement('div');
+        objectCard.className = 'object-card';
+        objectCard.innerHTML = `
+            <div class="object-name">${obj.name}</div>
+            <div class="object-confidence">${confidencePercent}% confidence</div>
+        `;
+        objectsGrid.appendChild(objectCard);
+    });
+}
+
+// ✅ ADDED: Display combined results function from picturetotext.js
+function displayCombinedResults(data) {
+    if (!combinedResult) return;
+    
+    let combinedText = '';
+    
+    // Add processing info
+    combinedText += `Processing Time: ${data.processingTime}\n`;
+    combinedText += `OCR Engine: ${data.ocr?.engine || 'Unknown'}\n`;
+    combinedText += `Language: ${data.languageUsed || 'Auto-detect'}\n`;
+    combinedText += `Confidence: ${data.ocr?.confidence ? Math.round(data.ocr.confidence) + '%' : 'N/A'}\n\n`;
+    
+    // Add object detection results (limited to 4)
+    if (data.objects?.count > 0) {
+        combinedText += `IMAGE CONTENT:\n`;
+        combinedText += `${data.objects.description}\n\n`;
+        
+        combinedText += `DETECTED OBJECTS (Top ${Math.min(data.objects.count, 4)}):\n`;
+        data.objects.detected.slice(0, 4).forEach(obj => {
+            const confidencePercent = Math.round(obj.confidence * 100);
+            combinedText += `- ${obj.name} ${confidencePercent}% confidence\n`;
+        });
+        combinedText += `\n`;
+    } else {
+        combinedText += `IMAGE CONTENT:\nNo objects detected\n\n`;
+    }
+    
+    // Add extracted text
+    combinedText += `EXTRACTED TEXT:\n`;
+    if (data.ocr?.text && data.ocr.text.trim().length > 0) {
+        combinedText += data.ocr.text;
+    } else {
+        combinedText += 'No text could be extracted from this image.';
+    }
+    
+    combinedResult.textContent = combinedText;
+}
+
+// ✅ ADDED: Tab switching function from picturetotext.js
+function switchTab(tabName) {
+    // Update tab active states
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Activate selected tab
+    const activeTab = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+    const tabContent = document.getElementById(tabName + 'Tab');
+    if (tabContent) tabContent.classList.add('active');
+}
+
+// ✅ ADDED: Copy text functionality from picturetotext.js
+function setupExtractionCopyButtons() {
+    if (copyTextBtn) {
+        copyTextBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(textResult.textContent);
+                showCopyFeedback(copyTextBtn);
+            } catch (err) {
+                alert('Failed to copy text to clipboard');
+            }
+        });
+    }
+
+    if (copyAllBtn) {
+        copyAllBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(combinedResult.textContent);
+                showCopyFeedback(copyAllBtn);
+            } catch (err) {
+                alert('Failed to copy text to clipboard');
+            }
+        });
+    }
+}
+
+// ✅ ADDED: Show copy feedback function from picturetotext.js
+function showCopyFeedback(button) {
+    const originalText = button.innerHTML;
+    button.classList.add('copy-success');
+    button.innerHTML = '✅ Copied!';
+    
+    setTimeout(() => {
+        button.classList.remove('copy-success');
+        button.innerHTML = originalText;
+    }, 2000);
+}
+
 // ✅ Load bookmarked languages from localStorage
 function loadBookmarkedLanguages() {
     const saved = localStorage.getItem('bookmarkedLanguages');
@@ -112,18 +590,19 @@ function saveBookmarkedLanguages() {
 }
 
 // ✅ Create custom dropdown with star icons AND AUTO-DETECT OPTION
+// ✅ Create custom dropdown with star icons AND ENGLISH AS DEFAULT
 function createCustomDropdown() {
     if (!langSelect) return;
     
     const currentSelection = langSelect.value;
     langSelect.innerHTML = '';
     
-    // Add Auto-detect option first (like the working version)
-    const autoOption = document.createElement('option');
-    autoOption.value = 'auto';
-    autoOption.textContent = '🌐 All Languages (Auto-detect)';
-    autoOption.setAttribute('data-bookmarked', 'false');
-    langSelect.appendChild(autoOption);
+    // Add English as default option first
+    const englishOption = document.createElement('option');
+    englishOption.value = 'en';
+    englishOption.textContent = '🇺🇸 English';
+    englishOption.setAttribute('data-bookmarked', 'false');
+    langSelect.appendChild(englishOption);
     
     const separator = document.createElement('option');
     separator.disabled = true;
@@ -134,6 +613,9 @@ function createCustomDropdown() {
     const normalLangs = [];
     
     Object.entries(supportedLanguages).forEach(([code, name]) => {
+        // Skip English since we already added it as default
+        if (code === 'en') return;
+        
         if (bookmarkedLanguages.has(code)) {
             bookmarkedLangs.push({ code, name });
         } else {
@@ -167,10 +649,9 @@ function createCustomDropdown() {
         langSelect.appendChild(option);
     });
     
-    // Set default to auto-detect (like the working version)
-    langSelect.value = 'auto';
+    // Set default to English
+    langSelect.value = 'en';
 }
-
 // ✅ Toggle bookmark for a language
 function toggleBookmark(langCode) {
     const wasBookmarked = bookmarkedLanguages.has(langCode);
@@ -236,8 +717,9 @@ function setupLanguageSelectContextMenu() {
     });
 }
 
-// ✅ Initialize DOM elements
+// ✅ Initialize DOM elements - ENHANCED WITH EXTRACTION ELEMENTS
 function initializeDOMElements() {
+    // Translator elements
     langSelect = document.getElementById('languageSelect');
     extractedResult = document.getElementById('extractedResult');
     translatedResult = document.getElementById('translatedResult');
@@ -262,7 +744,28 @@ function initializeDOMElements() {
     copyTranslatedBtn = document.getElementById('copyTranslatedBtn');
     copyObjectsBtn = document.getElementById('copyObjectsBtn');
 
+    // ✅ ADDED: Extraction-specific elements from picturetotext.js
+    uploadArea = document.getElementById('uploadArea');
+    selectImageBtn = document.getElementById('selectImageBtn');
+    uploadBtn = document.getElementById('uploadBtn');
+    // languageSelect = document.getElementById('languageSelect'); // Note: This might conflict with langSelect
+    
+    statusText = document.getElementById('statusText');
+    timeText = document.getElementById('timeText');
+    engineText = document.getElementById('engineText');
+    languageText = document.getElementById('languageText');
+    objectsCount = document.getElementById('objectsCount');
+    
+    textResult = document.getElementById('textResult');
+    objectsGrid = document.getElementById('objectsGrid');
+    objectsDescription = document.getElementById('objectsDescription');
+    combinedResult = document.getElementById('combinedResult');
+    
+    copyTextBtn = document.getElementById('copyTextBtn');
+    copyAllBtn = document.getElementById('copyAllBtn');
+
     console.log('DOM Elements:', {
+        // Translator elements
         arrow: !!arrow,
         imageInput: !!imageInput,
         langSelect: !!langSelect,
@@ -271,7 +774,23 @@ function initializeDOMElements() {
         previewImage: !!previewImage,
         copyExtractedBtn: !!copyExtractedBtn,
         copyTranslatedBtn: !!copyTranslatedBtn,
-        copyObjectsBtn: !!copyObjectsBtn
+        copyObjectsBtn: !!copyObjectsBtn,
+        
+        // Extraction elements
+        uploadArea: !!uploadArea,
+        selectImageBtn: !!selectImageBtn,
+        uploadBtn: !!uploadBtn,
+        statusText: !!statusText,
+        timeText: !!timeText,
+        engineText: !!engineText,
+        languageText: !!languageText,
+        objectsCount: !!objectsCount,
+        textResult: !!textResult,
+        objectsGrid: !!objectsGrid,
+        objectsDescription: !!objectsDescription,
+        combinedResult: !!combinedResult,
+        copyTextBtn: !!copyTextBtn,
+        copyAllBtn: !!copyAllBtn
     });
 }
 
@@ -299,8 +818,9 @@ function setupImagePreview() {
     });
 }
 
-// ✅ Copy button functionality
+// ✅ Copy button functionality - ENHANCED WITH EXTRACTION BUTTONS
 function setupCopyButtons() {
+    // Translator copy buttons
     if (copyExtractedBtn) {
         copyExtractedBtn.addEventListener('click', () => handleCopyClick(extractedResult, copyExtractedBtn));
     }
@@ -310,6 +830,9 @@ function setupCopyButtons() {
     if (copyObjectsBtn) {
         copyObjectsBtn.addEventListener('click', () => handleCopyClick(objectsResult, copyObjectsBtn));
     }
+    
+    // ✅ ADDED: Extraction copy buttons
+    setupExtractionCopyButtons();
 }
 
 function handleCopyClick(resultElement, copyButton) {
@@ -370,6 +893,7 @@ function useFallbackCopy(text, copyButton) {
         alert('Failed to copy text to clipboard');
     }
 }
+
 
 function showCopySuccess(copyButton) {
     const originalText = copyButton.innerHTML;
@@ -767,138 +1291,338 @@ function setupEventListeners() {
         });
     }
 
+ // ✅ FIXED: Auto-translation when language changes with proper null checks
+if (langSelect) {
+    langSelect.addEventListener('change', async () => {
+        console.log('🔄 Language changed to:', langSelect.value);
+        
+        // ✅ FIXED: Use textResult instead of extractedResult for extraction text
+        let extractedText = '';
+        if (textResult) {
+            extractedText = textResult.textContent;
+        } else if (extractedResult) {
+            extractedText = extractedResult.textContent;
+        }
+        
+        console.log('📝 Extracted text for translation:', extractedText ? extractedText.substring(0, 100) + '...' : 'No text found');
+        
+        // Only translate if we have valid extracted text
+        if (extractedText && 
+            extractedText.trim().length > 0 && 
+            !extractedText.includes('No text could be extracted') &&
+            !extractedText.includes('Processing...') &&
+            !extractedText.includes('Error:') &&
+            !extractedText.includes('Extracted text will appear here') &&
+            !extractedText.includes('Upload an image to see')) {
+            
+            console.log('🔄 Auto-translating to:', langSelect.value);
+            
+            if (translatedResult) {
+                translatedResult.textContent = 'Translating...';
+            }
+            
+            const result = await translateTextManually(extractedText, langSelect.value);
+            
+            if (result.success) {
+                if (translatedResult) {
+                    translatedResult.textContent = result.translated;
+                }
+                
+                // Enable copy button and make text clickable
+                if (copyTranslatedBtn) copyTranslatedBtn.disabled = false;
+                
+                setTimeout(() => {
+                    makeTranslatedTextClickable();
+                }, 100);
+                
+                console.log('✅ Auto-translation completed');
+            } else {
+                if (translatedResult) {
+                    translatedResult.textContent = `Translation failed: ${result.error}\n\nOriginal text:\n${extractedText}`;
+                }
+            }
+        } else {
+            console.log('❌ No valid text to translate');
+            if (translatedResult) {
+                translatedResult.textContent = 'No valid extracted text available for translation. Please analyze an image first.';
+            }
+        }
+    });
+}
     // Setup image preview
     setupImagePreview();
 }
 
 // ✅ FIXED: Handle form submission with CORRECT ENDPOINT
-// ✅ FIXED: Handle form submission with CORRECT ENDPOINT
-async function handleFormSubmit(e) {
-    e.preventDefault();
+// async function handleFormSubmit(e) {
+//   e.preventDefault();
 
-    const fileInput = document.getElementById('imageInput');
-    if (!fileInput.files.length) {
-        alert('Please select an image.');
-        return;
-    }
+//   const fileInput = document.getElementById('imageInput');
+//   if (!fileInput.files.length) {
+//     alert('Please select an image.');
+//     return;
+//   }
 
-    const formData = new FormData();
-    formData.append('image', fileInput.files[0]);
+//   const formData = new FormData();
+//   formData.append('image', fileInput.files[0]);
+  
+//   // Get selected language for translation
+//   const selectedLanguage = langSelect.value;
+//   console.log('Selected language for translation:', selectedLanguage);
+//   formData.append('targetLanguage', selectedLanguage);
+
+//   // Show loading state
+//   setLoadingState(true);
+//   const startTime = Date.now();
+
+//   try {
+//     console.log('Sending request to server with language:', selectedLanguage);
     
-    // ✅ FIXED: Use correct field name
-    const selectedLanguage = langSelect.value;
-    formData.append('targetLanguage', selectedLanguage); // Changed from 'language'
+//     // ✅ FIXED: Use the CORRECT endpoint for translator (like translator.js)
+//     const response = await fetch('http://localhost:3000/api/picturetotexttranslator/upload', {
+//       method: 'POST',
+//       body: formData
+//     });
 
-    // Show loading state
-    setLoadingState(true);
-    const startTime = Date.now();
+//     const data = await response.json();
+//     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+//     console.log('Server response:', data);
+
+//     if (data.error) {
+//       showError(data.error);
+//     } else {
+//       // ✅ FIXED: Use the display function that handles translation properly
+//       displayTranslatorResults(data, elapsed);
+//     }
+//   } catch (err) {
+//     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+//     console.error('Request failed:', err);
+//     showRequestError(err, elapsed);
+//   } finally {
+//     setLoadingState(false);
+//   }
+// }
+// // ✅ ENHANCED: Better translation results display
+// function displayTranslatorResults(data, elapsed) {
+//     console.log('🚨 FULL SERVER RESPONSE:', data);
+    
+//     const extractedText = data.extractedText || '';
+//     const translatedText = data.translatedText || '';
+//     const detectedLanguage = data.detectedLanguage || 'unknown';
+//     const targetLanguage = data.targetLanguage || langSelect.value;
+    
+//     // Debug information
+//     console.log('🔍 Translation Analysis:', {
+//         extractedText: extractedText.substring(0, 100),
+//         translatedText: translatedText.substring(0, 100),
+//         detectedLanguage: detectedLanguage,
+//         targetLanguage: targetLanguage,
+//         areTextsEqual: extractedText === translatedText,
+//         extractedLength: extractedText.length,
+//         translatedLength: translatedText.length,
+//         debugInfo: data.debug // Include server debug info
+//     });
+    
+//     // ✅ EXTRACTED TEXT: Show original text
+//     if (extractedText && extractedText.trim().length > 0) {
+//         extractedResult.textContent = extractedText;
+//     } else {
+//         extractedResult.textContent = 'No text could be extracted from this image.';
+//     }
+    
+//     // ✅ IMPROVED TRANSLATION LOGIC
+//     const hasValidExtractedText = extractedText && 
+//         extractedText.trim().length > 0 && 
+//         !extractedText.includes('No text could be extracted') &&
+//         !extractedText.includes('Text detected but could not be extracted') &&
+//         !extractedText.includes('No significant text detected');
+    
+//     if (hasValidExtractedText) {
+//         const isSameLanguage = data.sameLanguage === true;
+//         const translationFailed = data.translationFailed === true;
+//         const translationActuallyWorked = translatedText && 
+//             translatedText.trim().length > 0 && 
+//             translatedText !== extractedText;
+        
+//         console.log('🔍 Translation Status:', {
+//             isSameLanguage,
+//             translationFailed,
+//             translationActuallyWorked,
+//             detectedLanguage,
+//             targetLanguage
+//         });
+        
+//         if (isSameLanguage) {
+//             translatedResult.textContent = `🌍 No translation needed (text is already in ${supportedLanguages[targetLanguage] || targetLanguage}):\n\n${extractedText}`;
+//         } 
+//         else if (translationFailed) {
+//             translatedResult.textContent = `❌ Translation to ${supportedLanguages[targetLanguage] || targetLanguage} failed.\n\nError: ${data.error || 'Unknown error'}\n\nOriginal text:\n${extractedText}`;
+//         }
+//         else if (translationActuallyWorked) {
+//             translatedResult.textContent = translatedText;
+//             console.log('✅ Translation successful!');
+//         } 
+//         else {
+//             translatedResult.textContent = `⚠️ Translation may have issues. Showing original text:\n\n${extractedText}`;
+//         }
+//     } else {
+//         translatedResult.textContent = 'No text available for translation.';
+//     }
+    
+//     // Continue with the rest of your display logic...
+//     displayObjectResults(data.objects);
+//     updateObjectsPanel(data.objects);
+//     updateSummaryPanel(data, elapsed);
+    
+//     // Make translated text clickable if we have actual translation
+//     const hasActualTranslation = translatedText && 
+//         translatedText !== extractedText && 
+//         !translatedResult.textContent.includes('No translation needed') &&
+//         !translatedResult.textContent.includes('Translation failed');
+    
+//     if (hasActualTranslation) {
+//         setTimeout(() => {
+//             makeTranslatedTextClickable();
+//         }, 100);
+//     }
+    
+//     // Update info sections with better messaging
+//     processingTime.textContent = `⏱️ Processing time: ${data.processingTime || elapsed}s`;
+    
+//     if (detectedLanguage && detectedLanguage !== 'unknown') {
+//         const detectedLangName = supportedLanguages[detectedLanguage] || detectedLanguage;
+//         const targetLangName = supportedLanguages[targetLanguage] || targetLanguage;
+        
+//         if (data.sameLanguage) {
+//             languageInfo.textContent = `🌍 Same language: ${detectedLangName}`;
+//         } else if (data.translationFailed) {
+//             languageInfo.textContent = `🌍 ${detectedLangName} → ${targetLangName} ❌`;
+//         } else if (hasActualTranslation) {
+//             languageInfo.textContent = `🌍 ${detectedLangName} → ${targetLangName} ✅`;
+//         } else {
+//             languageInfo.textContent = `🌍 ${detectedLangName} → ${targetLangName} ⚠️`;
+//         }
+//     } else {
+//         const targetLangName = supportedLanguages[targetLanguage] || targetLanguage;
+//         languageInfo.textContent = `🌍 Target: ${targetLangName}`;
+//     }
+    
+//     // Enable copy buttons
+//     if (copyExtractedBtn) copyExtractedBtn.disabled = !hasValidExtractedText;
+//     if (copyTranslatedBtn) copyTranslatedBtn.disabled = !hasActualTranslation;
+    
+//     // Show retry option if translation failed
+//     if (data.translationFailed && hasValidExtractedText) {
+//         showTranslationRetryOption(extractedText, targetLanguage);
+//     }
+// }
+// ✅ ENHANCED: Manual translation function with better error handling
+async function translateTextManually(text, targetLang) {
+    if (!text || text.trim().length === 0) {
+        return { translated: '', detected: 'unknown', success: false };
+    }
 
     try {
-        console.log('Sending request to CORRECT server endpoint...');
+        console.log('🌍 Manual translation to:', targetLang);
         
-        // ✅ FIXED: Use the CORRECT endpoint for translator (image_analysis_translator table)
-        const response = await fetch('http://localhost:3000/api/picturetotexttranslator/upload', {
+        // Use the translator endpoint directly
+        const response = await fetch('http://localhost:3000/translator/translate', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                text: text, 
+                to: targetLang 
+            })
         });
 
-        const data = await response.json();
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-        console.log('Server response:', data);
+        const data = await response.json();
 
         if (data.error) {
-            showError(data.error);
-        } else {
-            // ✅ FIXED: Call the correct function name (remove extra 's')
-            displayTranslatorResults(data, elapsed); // Changed from displayTranslatorResults
+            throw new Error(data.error);
         }
+
+        console.log('✅ Manual translation successful');
+        return {
+            translated: data.translated || data.text || text,
+            detected: data.detected || 'unknown',
+            success: true
+        };
     } catch (err) {
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.error('Request failed:', err);
-        showRequestError(err, elapsed);
-    } finally {
-        setLoadingState(false);
+        console.error('❌ Manual translation failed:', err);
+        return {
+            translated: text,
+            detected: 'unknown',
+            error: err.message,
+            success: false
+        };
     }
 }
 
-// ✅ FIXED: Display results using CORRECT response structure from PictureToTextTranslatorController
-function displayTranslatorResults(data, elapsed) {
-    // Use the structure from PictureToTextTranslatorController
-    const extractedText = data.extractedText || '';
-    const translatedText = data.translatedText || '';
+// ✅ ADD THIS FUNCTION: Retry translation with manual method
+async function retryTranslation() {
+    const extractedText = extractedResult.textContent;
+    const targetLang = langSelect.value;
     
-    // ✅ EXTRACTED TEXT: Show ONLY the original extracted text
-    extractedResult.textContent = extractedText || 'No text could be extracted from this image.';
-    
-    // ✅ TRANSLATED TEXT: Show the actual translation (not the same as extracted)
-    if (translatedText && translatedText !== extractedText) {
-        translatedResult.textContent = translatedText;
-    } else if (extractedText && (langSelect.value === 'auto' || langSelect.value === 'en')) {
-        // If target is English or auto, show original text in translated section
-        translatedResult.textContent = extractedText;
-    } else {
-        // If no translation available, show appropriate message
-        translatedResult.textContent = 'Translation not available.';
+    if (!extractedText || extractedText.includes('No text could be extracted') || targetLang === 'en') {
+        return;
     }
     
-    // Display object detection results
-    displayObjectResults(data.objects);
-    
-    // Update panels with translator data
-    updateObjectsPanel(data.objects);
-    updateSummaryPanel(data, elapsed);
-    
-    // Make translated text clickable
-    if (translatedResult.textContent && translatedResult.textContent !== 'Translation not available.') {
-        setTimeout(() => {
-            makeTranslatedTextClickable();
-        }, 100);
+    try {
+        translatedResult.textContent = '🔄 Retrying translation...';
+        const result = await translateTextManually(extractedText, targetLang);
+        
+        if (result.success) {
+            translatedResult.textContent = result.translated;
+            languageInfo.textContent = `🌍 Detected: ${result.detected} → ${supportedLanguages[targetLang] || targetLang}`;
+            
+            // Make text clickable
+            setTimeout(() => {
+                makeTranslatedTextClickable();
+            }, 100);
+            
+            // Enable copy button
+            if (copyTranslatedBtn) copyTranslatedBtn.disabled = false;
+        } else {
+            translatedResult.textContent = `❌ Translation failed: ${result.error}\n\n${extractedText}`;
+        }
+    } catch (error) {
+        translatedResult.textContent = `❌ Translation retry failed: ${error.message}`;
     }
-    
-    // Update info sections
-    processingTime.textContent = `⏱️ Processing time: ${data.processingTime || elapsed}s`;
-    
-    if (data.detectedLanguage && data.detectedLanguage !== 'unknown') {
-        const detectedLangName = supportedLanguages[data.detectedLanguage] || data.detectedLanguage;
-        const targetLangName = supportedLanguages[data.targetLanguage] || data.targetLanguage;
-        languageInfo.textContent = `🌍 Detected: ${detectedLangName} → ${targetLangName}`;
-    } else {
-        const targetLangName = langSelect.value === 'auto' ? 'All Languages (Auto-detect)' : 
-                              supportedLanguages[langSelect.value] || langSelect.value;
-        languageInfo.textContent = `🌍 Target language: ${targetLangName}`;
-    }
-    
-    if (data.confidence) {
-        confidenceInfo.textContent = `📊 OCR Confidence: ${Math.round(data.confidence)}%`;
-    } else {
-        confidenceInfo.textContent = '';
-    }
-    
-    if (data.objects && data.objects.count > 0) {
-        objectsInfo.textContent = `🔍 Objects detected: ${data.objects.count}`;
-    } else {
-        objectsInfo.textContent = '🔍 No objects detected';
-    }
-    
-    // Enable copy buttons
-    if (copyExtractedBtn) copyExtractedBtn.disabled = !extractedText;
-    if (copyTranslatedBtn) copyTranslatedBtn.disabled = !translatedText || translatedText === 'Translation not available.';
-    if (copyObjectsBtn) copyObjectsBtn.disabled = !data.objects || data.objects.count === 0;
-    
-    // Show definition container when we have translation
-    const definitionContainer = document.getElementById('definitionContainer');
-    if (definitionContainer && translatedText && translatedText.trim() && translatedText !== 'Translation not available.') {
-        definitionContainer.style.display = 'block';
-    }
-    
-    console.log('Display Results:', {
-        extractedText: extractedText.substring(0, 50) + '...',
-        translatedText: translatedText.substring(0, 50) + '...',
-        areDifferent: extractedText !== translatedText
-    });
 }
 
+// ✅ FIXED: Event listener for language change to retry translation
+function setupTranslationRetry() {
+    if (langSelect) {
+        langSelect.addEventListener('change', () => {
+            // If we already have extracted text, retry translation with new language
+            let extractedText = '';
+            if (textResult) {
+                extractedText = textResult.textContent;
+            } else if (extractedResult) {
+                extractedText = extractedResult.textContent;
+            }
+            
+            if (extractedText && 
+                extractedText.trim().length > 0 && 
+                !extractedText.includes('No text could be extracted') &&
+                !extractedText.includes('Extracted text will appear here') &&
+                !extractedText.includes('Upload an image to see')) {
+                
+                console.log('Language changed, retrying translation...');
+                setTimeout(() => {
+                    retryTranslation();
+                }, 500);
+            }
+        });
+    }
+}
 // ✅ Display object detection results
 function displayObjectResults(objectsData) {
     if (!objectsData || objectsData.count === 0) {
@@ -1514,17 +2238,28 @@ function setLoadingState(isLoading) {
     }
 }
 
-// ✅ Initialize the application
+// ✅ UPDATE: Initialize function to include translation retry
 function init() {
     initializeDOMElements();
     loadBookmarkedLanguages();
-    createCustomDropdown(); // Now includes "Auto-detect" as default
+    createCustomDropdown();
+    
+    // ✅ ADDED: Extraction-specific initialization
+    initializeButtonState();
+    setupSelectImageButton();
+    setupUploadArea();
+    setupFileInputListener(); // ✅ ADD THIS LINE
+    
     setupEventListeners();
     setupLanguageSelectContextMenu();
     setupCopyButtons();
     initPanelControls();
     initCountryInfoSystem();
-    console.log('Enhanced Picture to Text Translator with CORRECT ENDPOINT initialized!');
+    
+    // ✅ ADDED: Setup translation retry
+    setupTranslationRetry();
+    
+    console.log('Enhanced Picture to Text Translator with EXTRACTION FEATURES initialized!');
     
     // Initialize Puter AI
     setTimeout(async () => {
@@ -1536,6 +2271,12 @@ function init() {
         }
     }, 1000);
 }
+
+// ✅ Make switchTab function globally available
+window.switchTab = switchTab;
+
+// ✅ ADDED: Make handleUpload globally available for extraction
+window.handleUpload = handleUpload;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

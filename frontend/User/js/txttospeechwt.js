@@ -1,7 +1,7 @@
 // LinguaLens/frontend/User/js/txttospeechwt.js
 
-// Language options for the dropdown
-const languageOptions = [
+// Supported TTS languages (Puter AI) - Only languages that can actually be spoken
+const supportedTtsLanguages = [
   { value: 'en', name: 'English' },
   { value: 'es', name: 'Spanish' },
   { value: 'fr', name: 'French' },
@@ -14,55 +14,43 @@ const languageOptions = [
   { value: 'zh', name: 'Chinese' },
   { value: 'ar', name: 'Arabic' },
   { value: 'hi', name: 'Hindi' },
-  { value: 'tr', name: 'Turkish' },
   { value: 'nl', name: 'Dutch' },
+  { value: 'tr', name: 'Turkish' },
   { value: 'sv', name: 'Swedish' },
-  { value: 'pl', name: 'Polish' },
-  { value: 'vi', name: 'Vietnamese' },
-  { value: 'th', name: 'Thai' },
-  { value: 'el', name: 'Greek' },
-  { value: 'he', name: 'Hebrew' },
-  { value: 'id', name: 'Indonesian' },
-  { value: 'ms', name: 'Malay' },
-  { value: 'cs', name: 'Czech' },
-  { value: 'da', name: 'Danish' },
-  { value: 'fi', name: 'Finnish' },
-  { value: 'hu', name: 'Hungarian' },
-  { value: 'no', name: 'Norwegian' },
-  { value: 'ro', name: 'Romanian' },
-  { value: 'sk', name: 'Slovak' },
-  { value: 'uk', name: 'Ukrainian' },
-  { value: 'bg', name: 'Bulgarian' },
-  { value: 'hr', name: 'Croatian' },
-  { value: 'ca', name: 'Catalan' },
-  { value: 'fil', name: 'Filipino' },
-  { value: 'sr', name: 'Serbian' },
-  { value: 'sl', name: 'Slovenian' },
-  { value: 'et', name: 'Estonian' },
-  { value: 'lv', name: 'Latvian' },
-  { value: 'lt', name: 'Lithuanian' }
+  { value: 'pl', name: 'Polish' }
 ];
 
-// Function to populate language dropdown
+// Function to populate language dropdown with only supported TTS languages
 function populateLanguageDropdown() {
   const targetLang = document.getElementById('targetLang');
   
-  // Clear existing options (keeping the first one if it exists)
-  while (targetLang.options.length > 1) {
-    targetLang.remove(1);
+  // Clear all existing options
+  while (targetLang.options.length > 0) {
+    targetLang.remove(0);
   }
   
-  // Add all language options
-  languageOptions.forEach(lang => {
+  // Add only supported TTS languages
+  supportedTtsLanguages.forEach(lang => {
     const option = document.createElement('option');
     option.value = lang.value;
     option.textContent = lang.name;
     targetLang.appendChild(option);
   });
+  
+  // Update the language count display
+  updateLanguageCount();
+}
+
+// Function to update the language count display
+function updateLanguageCount() {
+  const languageCount = document.querySelector('.language-count');
+  if (languageCount) {
+    languageCount.textContent = `${supportedTtsLanguages.length}+ Languages`;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Populate the language dropdown
+  // Populate the language dropdown with only supported languages
   populateLanguageDropdown();
   
   const inputText = document.getElementById('inputText');
@@ -109,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      await fetch('http://localhost:3000/api/tts-history', {
+      await fetch('http://localhost:3000/tts-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      await fetch('http://localhost:3000/api/tts-analytics', {
+      await fetch('http://localhost:3000/tts-analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

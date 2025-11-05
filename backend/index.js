@@ -40,6 +40,7 @@ const quizRoutes = require('./routes/quizRoutes');
 const txtToSpeechWTRoutes = require('./routes/txttospeechwt');
 const leaderboardsRoutes = require('./routes/leaderboards');
 const ttsRoutes = require('./routes/ttsRoutes'); // Remove duplicate registration
+const translationUpdateRoutes = require('./routes/translationUpdate');
 
 // ✅ Register routes
 app.use('/api/v1', userRoutes);
@@ -54,6 +55,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api', txtToSpeechWTRoutes);
 app.use('/api/leaderboards', leaderboardsRoutes);
 // app.use('/api', ttsRoutes); // ✅ Only register once
+app.use('/api', translationUpdateRoutes);
 
 // ✅ Handle 404 errors
 app.use((req, res) => {

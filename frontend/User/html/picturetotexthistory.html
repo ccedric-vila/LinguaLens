@@ -1,113 +1,305 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Extraction History</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Analysis & Translation History</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f7f8fa;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
+    * {
       margin: 0;
-      padding: 40px;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    .container {
-      width: 90%;
-      max-width: 1100px;
-      background-color: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      min-height: 100vh;
       padding: 20px;
     }
 
-    h2 {
-      margin: 0 0 20px 0;
-      color: #333;
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(33, 150, 243, 0.2);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      background: #f8fdff;
+      padding: 20px;
+      border-bottom: 1px solid #e1f5fe;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 15px;
+      background: white;
+      border-radius: 10px;
+      min-width: 140px;
+      box-shadow: 0 2px 10px rgba(33, 150, 243, 0.1);
+    }
+
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #0288d1;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #0277bd;
+      font-weight: 500;
+    }
+
+    .table-container {
+      padding: 20px;
+      max-height: 600px;
+      overflow-y: auto;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      border-radius: 8px;
+      background: white;
+      border-radius: 10px;
       overflow: hidden;
+      box-shadow: 0 5px 15px rgba(33, 150, 243, 0.1);
     }
 
-    th, td {
-      padding: 12px;
-      border: 1px solid #ddd;
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      background: #007bff;
+    thead {
+      background: linear-gradient(135deg, #4fc3f7, #29b6f6);
       color: white;
     }
 
-    pre {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      margin: 0;
+    th {
+      padding: 15px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    /* Pagination styles */
+    tbody tr {
+      border-bottom: 1px solid #f1f9ff;
+      transition: all 0.3s ease;
+    }
+
+    tbody tr:hover {
+      background-color: #f8fdff;
+      transform: translateY(-1px);
+    }
+
+    td {
+      padding: 15px 12px;
+      vertical-align: top;
+    }
+
+    .text-content {
+      max-width: 250px;
+      max-height: 100px;
+      overflow-y: auto;
+      background: #f8fdff;
+      padding: 10px;
+      border-radius: 8px;
+      border-left: 3px solid #4fc3f7;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .language-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #e1f5fe;
+      color: #0277bd;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin: 2px;
+    }
+
+    .confidence-high {
+      color: #2e7d32;
+      font-weight: bold;
+      background: #e8f5e8;
+      padding: 4px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+
+    .confidence-medium {
+      color: #f57c00;
+      font-weight: bold;
+      background: #fff3e0;
+      padding: 4px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+
+    .confidence-low {
+      color: #c62828;
+      font-weight: bold;
+      background: #ffebee;
+      padding: 4px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+
     .pagination {
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 20px;
-      gap: 10px;
+      padding: 25px;
+      gap: 15px;
+      background: #f8fdff;
+      border-top: 1px solid #e1f5fe;
     }
 
     .pagination button {
-      padding: 8px 12px;
+      padding: 12px 20px;
       border: none;
-      background-color: #007bff;
+      background: #4fc3f7;
       color: white;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background 0.3s;
+      font-weight: 600;
+      transition: all 0.3s ease;
     }
 
-    .pagination button:hover {
-      background-color: #0056b3;
+    .pagination button:hover:not(:disabled) {
+      background: #29b6f6;
+      transform: translateY(-2px);
     }
 
     .pagination button:disabled {
-      background-color: #ccc;
+      background: #b0bec5;
       cursor: not-allowed;
+      transform: none;
+    }
+
+    .page-info {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0277bd;
+      background: white;
+      padding: 8px 15px;
+      border-radius: 8px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #0288d1;
+      font-size: 1.1rem;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #0288d1;
+      font-size: 1.1rem;
+    }
+
+    .timestamp {
+      font-size: 0.85rem;
+      color: #546e7a;
+    }
+
+    .filename {
+      font-weight: 500;
+      color: #37474f;
+    }
+
+    .latest-badge {
+      background: #4caf50;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      margin-top: 5px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>History of Extracted Texts</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Filename</th>
-          <th>Extracted Text</th>
-          <th>Date/Time</th>
-        </tr>
-      </thead>
-      <tbody id="historyTable">
-        <tr><td colspan="4">Loading...</td></tr>
-      </tbody>
-    </table>
+    <div class="header">
+      <h1>📖 Analysis & Translation History</h1>
+      <p>View your recent image analysis and translation activities</p>
+    </div>
 
-    <!-- Pagination controls -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-number" id="totalRecords">0</div>
+        <div class="stat-label">Total Records</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="todayRecords">0</div>
+        <div class="stat-label">Today's Activities</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="avgConfidence">0%</div>
+        <div class="stat-label">Avg Confidence</div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 60px;">#</th>
+            <th style="width: 150px;">Filename</th>
+            <th style="width: 250px;">Original Text</th>
+            <th style="width: 250px;">Translated Text</th>
+            <th style="width: 100px;">Languages</th>
+            <th style="width: 90px;">Confidence</th>
+            <th style="width: 100px;">Processing Time</th>
+            <th style="width: 150px;">Date & Time</th>
+          </tr>
+        </thead>
+        <tbody id="historyTable">
+          <tr>
+            <td colspan="8" class="loading">
+              <div>🔄 Loading your analysis history...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="pagination">
-      <button id="prevPage">Previous</button>
-      <span id="pageInfo">Page 1</span>
-      <button id="nextPage">Next</button>
+      <button id="prevPage">⬅ Previous</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button id="nextPage">Next ➡</button>
     </div>
   </div>
 
   <script src="../js/picturetotexthistory.js"></script>
 </body>
 </html>
+

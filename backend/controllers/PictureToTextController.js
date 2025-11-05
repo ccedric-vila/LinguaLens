@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const ObjectDetectionController = require('./ObjectDetectionController');
-
+const translatte = require('translatte');
 /**
  * Enhanced language configurations with CJK support
  */
@@ -38,6 +38,24 @@ const LANGUAGE_CONFIGS = {
  */
 const TESSDATA_PATH = path.join(__dirname, '..', 'tessdata');
 
+
+/**
+ * Detect actual language from extracted text
+ */
+const detectActualLanguage = async (text) => {
+  if (!text || text.trim().length < 3) return 'unknown';
+  
+  try {
+    console.log('🔍 Detecting language from extracted text...');
+    const result = await translatte(text, { to: 'en' });
+    const detectedLang = result.from.language.iso;
+    console.log(`✅ Detected language: ${detectedLang}`);
+    return detectedLang;
+  } catch (error) {
+    console.warn('⚠️ Language detection failed:', error.message);
+    return 'unknown';
+  }
+};
 /**
  * Check if language file exists locally
  */
@@ -433,37 +451,72 @@ const extractText = async (req, res) => {
     };
 
     // Save to database
-    const userId = req.user?.id || null;
-    
-    connection.query(
-      `INSERT INTO image_analysis 
-       (user_id, filename, extracted_text, objects_json, image_description, 
-        ocr_engine, detection_engine, processing_time, language_used, confidence_score, analysis_type) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        userId,
-        req.file.originalname,
-        finalText,
-        JSON.stringify(limitedObjects),
-        limitedObjectResult.description,
-        ocrEngine,
-        limitedObjectResult.engine,
-        `${elapsed}s`,
-        langConfig.name,
-        confidence,
-        textDetection.hasText ? 'text_heavy' : 'image_heavy'
-      ],
-      (err, results) => {
-        if (!err) {
-          console.log('✓ Saved analysis to database with ID:', results.insertId);
-        } else {
-          console.error('Failed to save analysis:', err);
+// Save to database
+const userId = req.user?.id || null;
+
+// Detect actual source language from extracted text
+const detectedSourceLang = await detectActualLanguage(finalText);
+const sourceLangName = LANGUAGE_CONFIGS[detectedSourceLang]?.name || detectedSourceLang;
+
+connection.query(
+  `INSERT INTO image_analysis 
+   (user_id, filename, extracted_text, objects_json, image_description, 
+    ocr_engine, detection_engine, processing_time, language_used, confidence_score, analysis_type) 
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [
+    userId,
+    req.file.originalname,
+    finalText,
+    JSON.stringify(limitedObjects),
+    limitedObjectResult.description,
+    ocrEngine,
+    limitedObjectResult.engine,
+    `${elapsed}s`,
+    sourceLangName, // Use detected language name instead of "All Languages"
+    confidence,
+    textDetection.hasText ? 'text_heavy' : 'image_heavy'
+  ],
+  (err, results) => {
+    if (!err) {
+      console.log('✓ Saved analysis to database with ID:', results.insertId);
+      
+      // ✅ DUAL INSERTION WITH PROPER LANGUAGE DETECTION
+      const translatorQuery = `
+        INSERT INTO image_analysis_translator 
+        (user_id, filename, extracted_text, translated_text, objects_json, 
+         source_language, target_language, processing_time, confidence_score, analysis_type) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      connection.query(
+        translatorQuery,
+        [
+          userId,                                    // user_id
+          req.file.originalname,                     // filename  
+          finalText,                                 // extracted_text
+          '',                                        // translated_text (empty for now)
+          JSON.stringify(limitedObjects),            // objects_json
+          detectedSourceLang,                        // source_language (detected code: 'ko', 'ja', 'fr')
+          'en',                                      // target_language (default to English)
+          `${elapsed}s`,                             // processing_time
+          confidence,                                // confidence_score
+          textDetection.hasText ? 'text_heavy' : 'image_heavy' // analysis_type
+        ],
+        (translatorErr, translatorResults) => {
+          if (translatorErr) {
+            console.error('❌ Failed to save to image_analysis_translator:', translatorErr);
+          } else {
+            console.log('💾 Also saved to image_analysis_translator with ID:', translatorResults.insertId);
+            console.log(`🌐 Source language detected: ${detectedSourceLang}`);
+          }
         }
-      }
-    );
-
-    res.json(responseData);
-
+      );
+      
+    } else {
+      console.error('Failed to save analysis:', err);
+    }
+  }
+);
   } catch (err) {
     // Cleanup on error
     processedFiles.forEach(p => {

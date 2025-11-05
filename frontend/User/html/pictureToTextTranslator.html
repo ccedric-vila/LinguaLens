@@ -1046,7 +1046,170 @@
       --border: #E2E8F0;
       --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
+/* Upload Area Styles */
+.upload-area {
+  border: 3px dashed #BBDEFB;
+  border-radius: 15px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f8fbff 0%, #e3f2fd 100%);
+  margin-bottom: 20px;
+}
 
+.upload-area:hover {
+  border-color: #2196F3;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+
+.upload-area.dragover {
+  border-color: #2196F3;
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #2196F3;
+  margin-bottom: 15px;
+}
+
+.upload-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0D47A1;
+  margin-bottom: 8px;
+}
+
+.upload-subtext {
+  font-size: 14px;
+  color: #546E7A;
+}
+
+/* Upload Actions */
+.upload-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: white;
+  border: 2px solid #BBDEFB;
+  color: #0D47A1;
+}
+
+.btn-secondary:hover {
+  border-color: #2196F3;
+  transform: translateY(-2px);
+}
+
+/* Processing Info */
+.processing-info {
+  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+  border: 2px solid #4CAF50;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2E7D32;
+  text-transform: uppercase;
+}
+
+/* Tabs System */
+.tabs-nav {
+  display: flex;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #E3F2FD;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #546E7A;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  color: #0D47A1;
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.tab.active {
+  background: #2196F3;
+  color: white;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
     /* Responsive Design */
     @media (max-width: 1200px) {
       .container {
@@ -1236,10 +1399,26 @@
           </div>
 
           <div class="upload-section">
-            <div class="arrow" id="arrow">
-              <i class="fas fa-arrow-down"></i>
+            <!-- Upload Area with Drag & Drop -->
+            <div id="uploadArea" class="upload-area">
+              <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+              </div>
+              <div class="upload-text">Drop your image here or click to browse</div>
+              <div class="upload-subtext">Supports JPG, PNG, GIF • Max 10MB</div>
+              <input type="file" id="imageInput" accept="image/*" style="display: none;">
             </div>
-            
+
+            <!-- Action Buttons -->
+            <div class="upload-actions">
+              <button id="selectImageBtn" class="btn-secondary">
+                <i class="fas fa-folder-open"></i> Select Image
+              </button>
+              <button id="uploadBtn" class="btn-primary" onclick="handleUpload()">
+                <i class="fas fa-search"></i> Analyze Image
+              </button>
+            </div>
+
             <!-- Image Preview -->
             <div id="imagePreview" style="display: none;">
               <img id="previewImage" src="#" alt="Image preview">
@@ -1247,23 +1426,48 @@
                 <i class="fas fa-trash-alt"></i> Remove Image
               </button>
             </div>
-            
-            <form id="uploadForm">
-              <input type="file" name="image" id="imageInput" accept="image/*" required />
-              
-              <div class="language-section">
-                <div class="section-header">
-                  <span class="language-label">
-                    <i class="fas fa-globe"></i> Translate to:
-                  </span>
-                </div>
-                <select id="languageSelect" class="language-select"></select>
-              </div>
 
-              <button type="submit" id="submitBtn">
-                <i class="fas fa-rocket"></i> Upload, Extract & Translate
-              </button>
-            </form>
+            <!-- Processing Info -->
+            <div id="processingInfo" class="processing-info" style="display: none;">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">Status:</span>
+                  <span id="statusText">Processing...</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Time:</span>
+                  <span id="timeText">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Engine:</span>
+                  <span id="engineText">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Language:</span>
+                  <span id="languageText">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Objects:</span>
+                  <span id="objectsCount">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Translation Language Selector -->
+            <div class="language-section">
+              <div class="section-header">
+                <span class="language-label">
+                  <i class="fas fa-globe"></i> Translate to:
+                </span>
+              </div>
+              <select id="languageSelect" class="language-select" disabled style="opacity: 0.6;">
+                <option value="en">English</option>
+                <!-- More languages will be populated by JS -->
+              </select>
+              <small style="display: block; margin-top: 8px; color: #666; font-size: 12px;">
+                Language dropdown will be enabled after text extraction
+              </small>
+            </div>
           </div>
         </div>
 
@@ -1282,20 +1486,63 @@
           </div>
 
           <div class="result-section">
-            <!-- Extracted Text -->
-            <div class="result-box">
+            <!-- Tabs Navigation -->
+            <div class="tabs-nav">
+              <button class="tab active" onclick="switchTab('combined')">
+                <i class="fas fa-layer-group"></i> Combined View
+              </button>
+              <button class="tab" onclick="switchTab('text')">
+                <i class="fas fa-file-alt"></i> Text Only
+              </button>
+              <button class="tab" onclick="switchTab('objects')">
+                <i class="fas fa-search"></i> Objects Only
+              </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="tab-content active" id="combinedTab">
+              <div class="result-header">
+                <div class="result-label">
+                  <i class="fas fa-layer-group"></i> Combined Results
+                </div>
+                <button id="copyAllBtn" class="copy-btn" disabled>
+                  <i class="fas fa-copy"></i> Copy All
+                </button>
+              </div>
+              <div id="combinedResult" class="result-content">
+                Upload an image to see combined extraction results...
+              </div>
+            </div>
+
+            <div class="tab-content" id="textTab">
               <div class="result-header">
                 <div class="result-label">
                   <i class="fas fa-file-alt"></i> Extracted Text
                 </div>
-                <button id="copyExtractedBtn" class="copy-btn" disabled>
-                  <i class="fas fa-copy"></i> Copy
+                <button id="copyTextBtn" class="copy-btn" disabled>
+                  <i class="fas fa-copy"></i> Copy Text
                 </button>
               </div>
-              <div id="extractedResult" class="result-content">Extracted text will appear here...</div>
+              <div id="textResult" class="result-content">
+                Extracted text will appear here...
+              </div>
             </div>
 
-            <!-- Translated Text -->
+            <div class="tab-content" id="objectsTab">
+              <div class="result-header">
+                <div class="result-label">
+                  <i class="fas fa-search"></i> Detected Objects
+                </div>
+              </div>
+              <div id="objectsDescription" class="objects-description">
+                Object detection results will appear here...
+              </div>
+              <div id="objectsGrid" class="objects-grid">
+                <!-- Object cards will be dynamically added here -->
+              </div>
+            </div>
+
+            <!-- Translated Text (Separate from extraction) -->
             <div class="result-box">
               <div class="result-header">
                 <div class="result-label">
@@ -1305,24 +1552,13 @@
                   <i class="fas fa-copy"></i> Copy
                 </button>
               </div>
-              <div id="translatedResult" class="result-content">Translated text will appear here...</div>
-            </div>
-
-            <!-- Detected Objects -->
-            <div class="result-box">
-              <div class="result-header">
-                <div class="result-label">
-                  <i class="fas fa-search"></i> Detected Objects
-                </div>
-                <button id="copyObjectsBtn" class="copy-btn" disabled>
-                  <i class="fas fa-copy"></i> Copy
-                </button>
+              <div id="translatedResult" class="result-content">
+                Select a language to translate extracted text...
               </div>
-              <div id="objectsResult" class="objects-content">Detected objects will appear here...</div>
             </div>
           </div>
 
-          <!-- Definition Container - FIXED: Now only appears when needed -->
+          <!-- Definition Container -->
           <div id="definitionContainer" class="definition-container" style="display: none;">
             <div class="definition-header">
               <h3><i class="fas fa-book"></i> Word Definition</h3>

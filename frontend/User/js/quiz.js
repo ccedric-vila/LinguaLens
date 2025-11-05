@@ -6,13 +6,14 @@ let currentQuiz = {
     currentQuestionIndex: 0,
     userAnswers: [],
     score: 0,
-    totalQuestions: 0
+    totalQuestions: 0,
+    difficulty: 'medium'
 };
 
 // DOM Elements
 let quizCreation, quizTaking, quizResults;
-let questionCountSelect, quizCategorySelect, generateQuizBtn;
-let currentQuestionEl, totalQuestionsEl, currentScoreEl;
+let questionCountSelect, quizCategorySelect, quizDifficultySelect, generateQuizBtn;
+let currentQuestionEl, totalQuestionsEl, currentScoreEl, difficultyBadgeEl;
 let questionTextEl, flagImageEl, optionsContainer, identificationInput;
 let prevBtn, nextBtn, submitBtn;
 let finalScoreCircle, resultsBreakdown;
@@ -40,12 +41,14 @@ function initializeDOMElements() {
     // Quiz creation elements
     questionCountSelect = document.getElementById('questionCount');
     quizCategorySelect = document.getElementById('quizCategory');
+    quizDifficultySelect = document.getElementById('quizDifficulty');
     generateQuizBtn = document.getElementById('generateQuiz');
     
     // Quiz taking elements
     currentQuestionEl = document.getElementById('currentQuestion');
     totalQuestionsEl = document.getElementById('totalQuestions');
     currentScoreEl = document.getElementById('currentScore');
+    difficultyBadgeEl = document.getElementById('difficultyBadge');
     questionTextEl = document.getElementById('questionText');
     flagImageEl = document.getElementById('flagImage');
     optionsContainer = document.getElementById('optionsContainer');
@@ -79,8 +82,9 @@ function setupEventListeners() {
 async function generateQuiz() {
     const questionCount = parseInt(questionCountSelect.value);
     const category = quizCategorySelect.value;
+    const difficulty = quizDifficultySelect.value;
     
-    console.log(`Generating quiz: ${questionCount} questions, category: ${category}`);
+    console.log(`Generating quiz: ${questionCount} questions, category: ${category}, difficulty: ${difficulty}`);
     
     // Show loading state
     const loadingEl = document.getElementById('creationLoading');
@@ -98,7 +102,7 @@ async function generateQuiz() {
         }
         
         // Generate quiz using AI
-        const quizData = await generateQuizWithAI(questionCount, category);
+        const quizData = await generateQuizWithAI(questionCount, category, difficulty);
         
         // Initialize quiz state
         currentQuiz = {
@@ -106,7 +110,8 @@ async function generateQuiz() {
             currentQuestionIndex: 0,
             userAnswers: new Array(quizData.questions.length).fill(null),
             score: 0,
-            totalQuestions: quizData.questions.length
+            totalQuestions: quizData.questions.length,
+            difficulty: difficulty
         };
         
         // Switch to quiz taking screen
@@ -126,7 +131,7 @@ async function generateQuiz() {
 }
 
 // Generate quiz questions using Puter AI
-async function generateQuizWithAI(questionCount, category) {
+async function generateQuizWithAI(questionCount, category, difficulty) {
     const categoryDescriptions = {
         'multiple_choice': 'text-based multiple choice questions about countries and languages',
         'multiple_choice_flag': 'multiple choice questions showing country flags and asking which country they belong to',
@@ -135,15 +140,23 @@ async function generateQuizWithAI(questionCount, category) {
         'combination': 'a mix of all question types about countries, languages, and flags'
     };
     
+    const difficultyDescriptions = {
+        'easy': 'basic questions about well-known countries and common languages',
+        'medium': 'moderate difficulty questions including some less common countries and languages',
+        'hard': 'challenging questions about less common countries, obscure languages, and detailed cultural facts',
+        'superhard': 'very difficult questions about rarely known countries, extremely obscure languages, and highly specific cultural details'
+    };
+    
     const prompt = `Generate a ${questionCount}-question quiz about countries and languages. 
 Category: ${categoryDescriptions[category]}
+Difficulty: ${difficultyDescriptions[difficulty]}
 
 Requirements:
 - Questions should be about world countries, their capitals, languages, cultures, and flags
 - For flag questions, include the country code for flag image URLs (use format: https://flagcdn.com/w320/{code}.png)
-- Make questions educational and varied
-- Include easy, medium, and hard questions
-- Focus on interesting cultural facts
+- Make questions appropriate for the ${difficulty} difficulty level
+- Include interesting cultural facts and educational content
+- For ${difficulty} difficulty, focus on ${getDifficultyFocus(difficulty)}
 
 Return ONLY a JSON object in this exact format:
 {
@@ -154,7 +167,8 @@ Return ONLY a JSON object in this exact format:
             "flagUrl": "https://flagcdn.com/w320/{code}.png" // only for flag questions
             "options": ["option1", "option2", "option3", "option4"], // only for multiple choice
             "correctAnswer": "exact correct answer",
-            "explanation": "brief educational explanation"
+            "explanation": "brief educational explanation",
+            "difficulty": "${difficulty}" // include difficulty level
         }
     ]
 }
@@ -198,6 +212,12 @@ Important: Return ONLY the JSON, no other text.`;
                         q.type = 'identification';
                     }
                 }
+                
+                // Ensure difficulty is set
+                if (!q.difficulty) {
+                    q.difficulty = difficulty;
+                }
+                
                 return q;
             });
             
@@ -210,33 +230,47 @@ Important: Return ONLY the JSON, no other text.`;
         
         // Fallback: Generate sample questions if AI fails
         console.log('Using fallback quiz questions');
-        return generateFallbackQuiz(questionCount, category);
+        return generateFallbackQuiz(questionCount, category, difficulty);
     }
 }
 
+// Helper function for difficulty focus
+function getDifficultyFocus(difficulty) {
+    const focusMap = {
+        'easy': 'well-known countries and common languages',
+        'medium': 'mix of common and some less common countries',
+        'hard': 'less common countries and detailed cultural facts',
+        'superhard': 'obscure countries and highly specific details'
+    };
+    return focusMap[difficulty] || 'general knowledge';
+}
+
 // Fallback quiz generator in case AI fails
-function generateFallbackQuiz(questionCount, category) {
+function generateFallbackQuiz(questionCount, category, difficulty) {
     const fallbackQuestions = [
         {
             type: "multiple_choice",
             question: "Which country is known for the Great Barrier Reef, the world's largest coral reef system?",
             options: ["Australia", "Philippines", "Indonesia", "Mexico"],
             correctAnswer: "Australia",
-            explanation: "The Great Barrier Reef is located off the coast of Queensland, Australia and is the world's largest coral reef system."
+            explanation: "The Great Barrier Reef is located off the coast of Queensland, Australia and is the world's largest coral reef system.",
+            difficulty: "easy"
         },
         {
             type: "multiple_choice",
             question: "What is the official language of Brazil?",
             options: ["Spanish", "Portuguese", "French", "English"],
             correctAnswer: "Portuguese",
-            explanation: "Brazil is the only Portuguese-speaking country in South America due to its history as a Portuguese colony."
+            explanation: "Brazil is the only Portuguese-speaking country in South America due to its history as a Portuguese colony.",
+            difficulty: "easy"
         },
         {
             type: "flag_identification",
             question: "Identify the country by its flag:",
             flagUrl: "https://flagcdn.com/w320/jp.png",
             correctAnswer: "Japan",
-            explanation: "This is the flag of Japan, known as the 'Nisshōki' or 'Hinomaru', featuring a red circle on a white background."
+            explanation: "This is the flag of Japan, known as the 'Nisshōki' or 'Hinomaru', featuring a red circle on a white background.",
+            difficulty: "easy"
         },
         {
             type: "multiple_choice_flag",
@@ -244,19 +278,80 @@ function generateFallbackQuiz(questionCount, category) {
             flagUrl: "https://flagcdn.com/w320/fr.png",
             options: ["France", "Italy", "Belgium", "Netherlands"],
             correctAnswer: "France",
-            explanation: "This is the flag of France, known as the 'Tricolore', with vertical blue, white, and red stripes."
+            explanation: "This is the flag of France, known as the 'Tricolore', with vertical blue, white, and red stripes.",
+            difficulty: "easy"
         },
         {
             type: "identification",
             question: "What is the capital of Canada?",
             correctAnswer: "Ottawa",
-            explanation: "Ottawa is the capital city of Canada, located in the province of Ontario."
+            explanation: "Ottawa is the capital city of Canada, located in the province of Ontario.",
+            difficulty: "easy"
+        },
+        {
+            type: "multiple_choice",
+            question: "Which of these countries has both Spanish and French as official languages?",
+            options: ["Andorra", "Switzerland", "Belgium", "Luxembourg"],
+            correctAnswer: "Andorra",
+            explanation: "Andorra has Catalan as its official language, but Spanish and French are also widely spoken and used in administration.",
+            difficulty: "medium"
+        },
+        {
+            type: "identification",
+            question: "What is the official language of Ethiopia?",
+            correctAnswer: "Amharic",
+            explanation: "Amharic is the official language of Ethiopia, though the country has many regional languages.",
+            difficulty: "medium"
+        },
+        {
+            type: "multiple_choice",
+            question: "Which country's flag features a dragon?",
+            options: ["Bhutan", "Wales", "Both Bhutan and Wales", "Malaysia"],
+            correctAnswer: "Both Bhutan and Wales",
+            explanation: "Both Bhutan and Wales have flags featuring dragons, making them unique in world flags.",
+            difficulty: "medium"
+        },
+        {
+            type: "multiple_choice",
+            question: "In which country would you find the ancient city of Timbuktu?",
+            options: ["Mali", "Niger", "Chad", "Sudan"],
+            correctAnswer: "Mali",
+            explanation: "Timbuktu is a historical city in Mali, West Africa, known for its role in trans-Saharan trade.",
+            difficulty: "hard"
+        },
+        {
+            type: "identification",
+            question: "What is the official language of Suriname?",
+            correctAnswer: "Dutch",
+            explanation: "Suriname was a Dutch colony and Dutch remains its official language, though many other languages are spoken.",
+            difficulty: "hard"
+        },
+        {
+            type: "multiple_choice",
+            question: "Which country has the most official languages?",
+            options: ["India", "South Africa", "Bolivia", "Zimbabwe"],
+            correctAnswer: "Bolivia",
+            explanation: "Bolivia has 37 official languages, the most of any country, including Spanish and 36 indigenous languages.",
+            difficulty: "superhard"
+        },
+        {
+            type: "identification",
+            question: "What is the capital of Eswatini (formerly Swaziland)?",
+            correctAnswer: "Mbabane",
+            explanation: "Mbabane is the administrative capital of Eswatini, while Lobamba is the royal and legislative capital.",
+            difficulty: "superhard"
         }
     ];
     
+    // Filter questions by difficulty if not combination
+    let filteredQuestions = fallbackQuestions;
+    if (difficulty !== 'combination') {
+        filteredQuestions = fallbackQuestions.filter(q => q.difficulty === difficulty);
+    }
+    
     // Return requested number of questions
     return {
-        questions: fallbackQuestions.slice(0, questionCount)
+        questions: filteredQuestions.slice(0, questionCount)
     };
 }
 
@@ -321,7 +416,7 @@ function showQuizTakingScreen() {
     currentScoreEl.textContent = currentQuiz.score;
 }
 
-// Load a specific question - FIXED VERSION
+// Load a specific question
 function loadQuestion(questionIndex) {
     if (questionIndex < 0 || questionIndex >= currentQuiz.questions.length) return;
     
@@ -333,6 +428,9 @@ function loadQuestion(questionIndex) {
     // Update progress
     currentQuestionEl.textContent = questionIndex + 1;
     currentScoreEl.textContent = currentQuiz.score;
+    
+    // Update difficulty badge
+    updateDifficultyBadge(question.difficulty || currentQuiz.difficulty);
     
     // Clear previous question state
     flagImageEl.style.display = 'none';
@@ -352,7 +450,7 @@ function loadQuestion(questionIndex) {
         flagImageEl.alt = `Flag of a country`;
     }
     
-    // Setup question type specific UI - FIXED LOGIC
+    // Setup question type specific UI
     if (question.type === 'multiple_choice' || question.type === 'multiple_choice_flag') {
         setupMultipleChoiceQuestion(question);
     } else if (question.type === 'identification' || question.type === 'flag_identification') {
@@ -378,6 +476,27 @@ function loadQuestion(questionIndex) {
     
     // Update navigation buttons
     updateNavigationButtons();
+}
+
+// Update difficulty badge
+function updateDifficultyBadge(difficulty) {
+    const badgeClasses = {
+        'easy': 'difficulty-badge difficulty-easy',
+        'medium': 'difficulty-badge difficulty-medium',
+        'hard': 'difficulty-badge difficulty-hard',
+        'superhard': 'difficulty-badge difficulty-superhard'
+    };
+    
+    const badgeText = {
+        'easy': 'Easy',
+        'medium': 'Medium',
+        'hard': 'Hard',
+        'superhard': 'Super Hard'
+    };
+    
+    difficultyBadgeEl.className = badgeClasses[difficulty] || 'difficulty-badge difficulty-medium';
+    difficultyBadgeEl.textContent = badgeText[difficulty] || 'Medium';
+    difficultyBadgeEl.style.display = 'inline-block';
 }
 
 // Setup multiple choice question
@@ -409,7 +528,7 @@ function setupMultipleChoiceQuestion(question) {
     });
 }
 
-// Setup identification question - FIXED VERSION
+// Setup identification question
 function setupIdentificationQuestion(question) {
     optionsContainer.style.display = 'none';
     identificationInput.style.display = 'block';
@@ -548,31 +667,46 @@ function showResultsScreen(percentage, correctAnswers) {
 
 // Get color based on score percentage
 function getScoreColor(percentage) {
-    if (percentage >= 80) return '#48bb78'; // Green
-    if (percentage >= 60) return '#ed8936'; // Orange
-    return '#e53e3e'; // Red
+    if (percentage >= 80) return 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+    if (percentage >= 60) return 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)';
+    return 'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)';
 }
 
 // Generate results breakdown
 function generateResultsBreakdown(correctAnswers) {
     const totalQuestions = currentQuiz.questions.length;
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+    
+    let performanceMessage = '';
+    if (percentage >= 90) performanceMessage = 'Outstanding! 🌟';
+    else if (percentage >= 80) performanceMessage = 'Excellent! 🎯';
+    else if (percentage >= 70) performanceMessage = 'Good job! 👍';
+    else if (percentage >= 60) performanceMessage = 'Not bad! 💪';
+    else performanceMessage = 'Keep practicing! 📚';
     
     resultsBreakdown.innerHTML = `
+        <div style="text-align: center; margin-bottom: 15px; font-weight: 700; color: #2d3748;">
+            ${performanceMessage}
+        </div>
         <div class="breakdown-item">
             <span>Total Questions:</span>
             <span>${totalQuestions}</span>
         </div>
         <div class="breakdown-item">
+            <span>Difficulty Level:</span>
+            <span style="text-transform: capitalize; font-weight: 600;">${currentQuiz.difficulty}</span>
+        </div>
+        <div class="breakdown-item">
             <span>Correct Answers:</span>
-            <span style="color: #48bb78; font-weight: 600;">${correctAnswers}</span>
+            <span style="color: #48bb78; font-weight: 700;">${correctAnswers}</span>
         </div>
         <div class="breakdown-item">
             <span>Incorrect Answers:</span>
-            <span style="color: #e53e3e; font-weight: 600;">${totalQuestions - correctAnswers}</span>
+            <span style="color: #e53e3e; font-weight: 700;">${totalQuestions - correctAnswers}</span>
         </div>
         <div class="breakdown-item">
             <span>Success Rate:</span>
-            <span style="font-weight: 600;">${Math.round((correctAnswers / totalQuestions) * 100)}%</span>
+            <span style="font-weight: 700;">${percentage}%</span>
         </div>
     `;
 }
@@ -589,6 +723,7 @@ async function submitQuizToBackend() {
                 quizId: 'quiz_' + Date.now(),
                 answers: currentQuiz.userAnswers,
                 questions: currentQuiz.questions,
+                difficulty: currentQuiz.difficulty,
                 userId: 'anonymous'
             })
         });
@@ -610,7 +745,8 @@ function newQuiz() {
         currentQuestionIndex: 0,
         userAnswers: [],
         score: 0,
-        totalQuestions: 0
+        totalQuestions: 0,
+        difficulty: 'medium'
     };
     
     // Show creation screen
@@ -619,21 +755,35 @@ function newQuiz() {
     quizResults.style.display = 'none';
 }
 
-// Review quiz answers - IMPROVED VERSION
+// Review quiz answers
 function reviewQuiz() {
-    let reviewHTML = '<h3 style="margin-bottom: 15px; color: #2d3748;">Quiz Review</h3>';
+    let reviewHTML = '<h3 style="margin-bottom: 20px; color: #2d3748; text-align: center;">Quiz Review</h3>';
     
     currentQuiz.questions.forEach((question, index) => {
         const userAnswer = currentQuiz.userAnswers[index] || 'No answer';
         const isCorrect = userAnswer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim();
         
         reviewHTML += `
-            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: ${isCorrect ? '#f0fff4' : '#fff5f5'}">
-                <div style="font-weight: 600; margin-bottom: 8px;">Question ${index + 1}: ${question.question}</div>
-                ${question.flagUrl ? `<img src="${question.flagUrl}" style="max-width: 100px; height: 60px; border: 1px solid #e2e8f0; border-radius: 4px; margin: 8px 0;">` : ''}
-                <div style="margin-bottom: 5px;"><strong>Your Answer:</strong> <span style="color: ${isCorrect ? '#48bb78' : '#e53e3e'}">${userAnswer}</span></div>
-                <div style="margin-bottom: 5px;"><strong>Correct Answer:</strong> <span style="color: #48bb78">${question.correctAnswer}</span></div>
-                <div style="font-size: 14px; color: #718096;"><strong>Explanation:</strong> ${question.explanation}</div>
+            <div style="margin-bottom: 25px; padding: 20px; border: 2px solid ${isCorrect ? '#c6f6d5' : '#fed7d7'}; border-radius: 12px; background: ${isCorrect ? '#f0fff4' : '#fff5f5'};">
+                <div style="font-weight: 700; margin-bottom: 10px; color: #2d3748; font-size: 17px;">
+                    Question ${index + 1}: ${question.question}
+                    <span class="difficulty-badge difficulty-${question.difficulty || 'medium'}" style="margin-left: 10px; font-size: 11px;">
+                        ${question.difficulty || 'Medium'}
+                    </span>
+                </div>
+                ${question.flagUrl ? `<img src="${question.flagUrl}" style="max-width: 120px; height: 70px; border: 2px solid #e2e8f0; border-radius: 6px; margin: 10px 0; display: block;">` : ''}
+                <div style="margin-bottom: 8px; font-size: 15px;">
+                    <strong>Your Answer:</strong> 
+                    <span style="color: ${isCorrect ? '#48bb78' : '#e53e3e'}; font-weight: 600;">${userAnswer}</span>
+                    ${isCorrect ? ' ✓' : ' ✗'}
+                </div>
+                <div style="margin-bottom: 8px; font-size: 15px;">
+                    <strong>Correct Answer:</strong> 
+                    <span style="color: #48bb78; font-weight: 600;">${question.correctAnswer}</span>
+                </div>
+                <div style="font-size: 14px; color: #4a5568; background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #4299e1;">
+                    <strong>Explanation:</strong> ${question.explanation}
+                </div>
             </div>
         `;
     });
@@ -646,19 +796,23 @@ function reviewQuiz() {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.5);
+        background: rgba(0,0,0,0.7);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
+        padding: 20px;
     `;
     
     reviewModal.innerHTML = `
-        <div style="background: white; padding: 25px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; width: 90%;">
+        <div style="background: white; padding: 30px; border-radius: 16px; max-width: 700px; max-height: 85vh; overflow-y: auto; width: 100%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2d3748;">Quiz Review - ${currentQuiz.difficulty.charAt(0).toUpperCase() + currentQuiz.difficulty.slice(1)} Difficulty</h3>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #e53e3e; color: white; border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 600;">
+                    Close
+                </button>
+            </div>
             ${reviewHTML}
-            <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 15px; padding: 10px 20px; background: #4299e1; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
-                Close Review
-            </button>
         </div>
     `;
     
@@ -674,7 +828,12 @@ function reviewQuiz() {
 
 // Go back to translator
 function goBackToTranslator() {
-    window.location.href = 'translator.html';
+    window.location.href = 'home.html';
+}
+
+// Go to home page
+function goToHome() {
+    window.location.href = '../User/html/home.html';
 }
 
 // Initialize quiz when DOM is loaded

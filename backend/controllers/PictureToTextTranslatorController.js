@@ -544,4 +544,4 @@ const getAvailableLanguages = async (req, res) => {
 module.exports = { 
   extractTranslateAndDetect,
   getAvailableLanguages 
-};
+};  

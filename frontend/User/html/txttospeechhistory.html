@@ -3,6 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <title>Text-to-Speech History</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e6f7ff 0%, #f0f8ff 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        table:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(0, 123, 255, 0.2);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #4da8ff 0%, #007bff 100%);
+            color: white;
+        }
+
+        th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #e1f5fe;
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #f8fdff;
+            transform: scale(1.01);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.1);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .text-cell {
+            max-width: 300px;
+            word-wrap: break-word;
+            color: #34495e;
+            line-height: 1.4;
+        }
+
+        .language-badge, .engine-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .language-badge {
+            background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(135, 206, 235, 0.3);
+        }
+
+        .engine-badge {
+            background: linear-gradient(135deg, #98fb98 0%, #32cd32 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(152, 251, 152, 0.3);
+        }
+
+        .date-cell {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .replay-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .replay-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+            background: linear-gradient(135deg, #ff5252 0%, #e53935 100%);
+        }
+
+        .replay-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+        }
+
+        #noHistoryMessage {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.2em;
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.1);
+            border: 2px dashed #b2ebf2;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.9em;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+            
+            .replay-btn {
+                padding: 8px 14px;
+                font-size: 0.8em;
+            }
+        }
+
+        /* Loading animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        table, #noHistoryMessage {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
 </head>
 <body>
     <h2>Your Text-to-Speech History</h2>
@@ -11,9 +178,10 @@
         <thead>
             <tr>
                 <th>Text</th>
+                <th>Language</th>
                 <th>Engine Used</th>
                 <th>Date & Time</th>
-                <th>Replay</th> <!-- ✅ Added -->
+                <th>Replay</th>
             </tr>
         </thead>
         <tbody id="ttsHistoryTableBody">

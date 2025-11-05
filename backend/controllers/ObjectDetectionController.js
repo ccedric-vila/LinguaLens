@@ -611,4 +611,4 @@ class ObjectDetectionController {
   }
 }
 
-module.exports = new ObjectDetectionController();
+module.exports = new ObjectDetectionController();   
