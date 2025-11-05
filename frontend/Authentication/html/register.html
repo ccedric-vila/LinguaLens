@@ -4,72 +4,298 @@
     <meta charset="UTF-8">
     <title>Register</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background particles */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 15s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0) scale(1);
+                opacity: 0.3;
+            }
+            33% {
+                transform: translateY(-100px) translateX(50px) scale(1.2);
+                opacity: 0.6;
+            }
+            66% {
+                transform: translateY(-50px) translateX(-50px) scale(0.8);
+                opacity: 0.4;
+            }
         }
 
         .register-container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 400px;
             text-align: center;
+            position: relative;
+            z-index: 10;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            animation: expandLine 0.8s ease-out 0.3s;
+        }
+
+        @keyframes expandLine {
+            from {
+                width: 0;
+            }
+            to {
+                width: 60px;
+            }
+        }
+
+        .input-group {
+            position: relative;
+            margin: 25px 0;
         }
 
         input {
             width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 15px 15px 15px 50px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #667eea;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus + .input-icon {
+            transform: translateY(-50%) scale(1.2);
         }
 
         button {
             width: 100%;
-            padding: 10px;
-            background-color: #3498db;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover::before {
+            width: 400px;
+            height: 400px;
         }
 
         button:hover {
-            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(-1px);
         }
 
         .link {
-            margin-top: 15px;
+            margin-top: 25px;
             font-size: 14px;
+            color: #666;
         }
 
         .link a {
-            color: #3498db;
+            color: #667eea;
             text-decoration: none;
+            font-weight: 600;
             cursor: pointer;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .link a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #667eea;
+            transition: width 0.3s ease;
         }
 
         .link a:hover {
-            text-decoration: underline;
+            color: #764ba2;
+        }
+
+        .link a:hover::after {
+            width: 100%;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-size: 14px;
+            min-height: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .success {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        /* Floating animation for form elements */
+        .input-group {
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .input-group:nth-child(1) { animation-delay: 0.1s; }
+        .input-group:nth-child(2) { animation-delay: 0.2s; }
+        .input-group:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        button {
+            animation: fadeInUp 0.6s ease-out 0.4s backwards;
+        }
+
+        .link {
+            animation: fadeInUp 0.6s ease-out 0.5s backwards;
         }
     </style>
 </head>
 <body>
 
+    <!-- Animated background particles -->
+    <script>
+        for (let i = 0; i < 15; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.width = Math.random() * 100 + 50 + 'px';
+            particle.style.height = particle.style.width;
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particle.style.animationDuration = Math.random() * 10 + 10 + 's';
+            document.body.appendChild(particle);
+        }
+    </script>
+
     <div class="register-container">
         <h2>Create Account</h2>
         <form id="registerForm">
-            <input type="text" id="name" placeholder="Name" required>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
+            <div class="input-group">
+                <input type="text" id="name" placeholder="Full Name" required>
+                <div class="input-icon">👤</div>
+            </div>
+            <div class="input-group">
+                <input type="email" id="email" placeholder="Email Address" required>
+                <div class="input-icon">📧</div>
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Password" required>
+                <div class="input-icon">🔒</div>
+            </div>
             <button type="submit">Register</button>
         </form>
 
@@ -81,12 +307,37 @@
     </div>
 
     <script>
-        // ✅ Redirect to login page
+        // Redirect to login page
         document.getElementById("goToLogin").addEventListener("click", () => {
             window.location.href = "login.html";
+        });
+
+        // Add input focus effects
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+            });
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+
+        // Form submission with animation
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            button.textContent = 'Creating Account...';
+            button.style.background = 'linear-gradient(135deg, #27ae60 0%, #229954 100%)';
+            
+            // This would normally call your register.js logic
+            setTimeout(() => {
+                button.textContent = 'Register';
+                button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }, 2000);
         });
     </script>
 
     <script src="../js/register.js"></script>
 </body>
-</html>
+</html> 

@@ -1,4 +1,4 @@
-// PictureToTextController.js - INTELLIGENT TEXT DETECTION VERSION (NO PROGRESS LOGS)
+// PictureToTextController.js - EXTRACTION ONLY VERSION
 const connection = require('../config/db');
 const Tesseract = require('tesseract.js');
 const sharp = require('sharp');
@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const ObjectDetectionController = require('./ObjectDetectionController');
-const translatte = require('translatte');
+
 /**
  * Enhanced language configurations with CJK support
  */
@@ -38,24 +38,6 @@ const LANGUAGE_CONFIGS = {
  */
 const TESSDATA_PATH = path.join(__dirname, '..', 'tessdata');
 
-
-/**
- * Detect actual language from extracted text
- */
-const detectActualLanguage = async (text) => {
-  if (!text || text.trim().length < 3) return 'unknown';
-  
-  try {
-    console.log('🔍 Detecting language from extracted text...');
-    const result = await translatte(text, { to: 'en' });
-    const detectedLang = result.from.language.iso;
-    console.log(`✅ Detected language: ${detectedLang}`);
-    return detectedLang;
-  } catch (error) {
-    console.warn('⚠️ Language detection failed:', error.message);
-    return 'unknown';
-  }
-};
 /**
  * Check if language file exists locally
  */
@@ -312,7 +294,7 @@ const performTesseractOCR = async (filePaths, languages) => {
 };
 
 /**
- * MAIN EXTRACTION FUNCTION - INTELLIGENT TEXT DETECTION FIRST
+ * MAIN EXTRACTION FUNCTION - EXTRACTION ONLY (NO TRANSLATION)
  */
 const extractText = async (req, res) => {
   if (!req.file) {
@@ -324,7 +306,7 @@ const extractText = async (req, res) => {
   let processedFiles = [filePath];
 
   try {
-    console.log('\n🚀 INTELLIGENT ANALYSIS: Text Detection First');
+    console.log('\n🚀 EXTRACTION ONLY: Starting OCR and Object Detection');
 
     // Check if tessdata path exists
     if (!fs.existsSync(TESSDATA_PATH)) {
@@ -336,14 +318,11 @@ const extractText = async (req, res) => {
     console.log(`📊 Text Detection Result: ${textDetection.hasText ? 'TEXT FOUND' : 'NO TEXT'}`);
     console.log(`   - Text length: ${textDetection.textLength} chars`);
     console.log(`   - Confidence: ${textDetection.confidence.toFixed(1)}`);
-    if (textDetection.sampleText) {
-      console.log(`   - Sample: ${textDetection.sampleText}`);
-    }
 
     // 2. Choose languages
     const selectedLang = req.body.language || 'all_languages';
     const langConfig = LANGUAGE_CONFIGS[selectedLang] || LANGUAGE_CONFIGS.all_languages;
-    console.log(`🌐 Selected language: ${langConfig.name}`);
+    console.log(`🌐 Selected OCR language: ${langConfig.name}`);
 
     let finalText = '';
     let ocrEngine = '';
@@ -426,38 +405,35 @@ const extractText = async (req, res) => {
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-    // Enhanced response with analysis type
-    const responseData = {
-      message: textDetection.hasText ? 'Text-focused analysis completed' : 'Object-focused analysis completed',
-      processingTime: `${elapsed}s`,
-      languageUsed: langConfig.name,
-      analysisType: textDetection.hasText ? 'text_heavy' : 'image_heavy',
-      textDetection: {
+// In PictureToTextController.js - Make sure confidence is returned
+const responseData = {
+    message: textDetection.hasText ? 'Text extraction completed' : 'Object detection completed',
+    processingTime: `${elapsed}s`,
+    languageUsed: langConfig.name,
+    analysisType: textDetection.hasText ? 'text_heavy' : 'image_heavy',
+    filename: req.file.originalname,
+    textDetection: {
         hasText: textDetection.hasText,
         textLength: textDetection.textLength,
         confidence: textDetection.confidence
-      },
-      ocr: {
+    },
+    ocr: {
         text: finalText,
         engine: ocrEngine,
-        confidence: Math.round(confidence)
-      },
-      objects: {
+        confidence: Math.round(confidence) // ✅ MAKE SURE THIS IS INCLUDED
+    },
+    objects: {
         detected: limitedObjects,
         description: limitedObjectResult.description,
         engine: limitedObjectResult.engine,
         count: limitedObjects.length
-      }
-    };
+    }
+};
 
-    // Save to database
-// Save to database
-const userId = req.user?.id || null;
+    // ✅ SAVE TO DATABASE - image_analysis TABLE ONLY (NO TRANSLATION DATA)
+    const userId = req.user?.id || null;
 
-// Detect actual source language from extracted text
-const detectedSourceLang = await detectActualLanguage(finalText);
-const sourceLangName = LANGUAGE_CONFIGS[detectedSourceLang]?.name || detectedSourceLang;
-
+    // In the database insertion part of PictureToTextController.js:
 connection.query(
   `INSERT INTO image_analysis 
    (user_id, filename, extracted_text, objects_json, image_description, 
@@ -472,51 +448,22 @@ connection.query(
     ocrEngine,
     limitedObjectResult.engine,
     `${elapsed}s`,
-    sourceLangName, // Use detected language name instead of "All Languages"
+    langConfig.name,
     confidence,
-    textDetection.hasText ? 'text_heavy' : 'image_heavy'
+    "extraction" // ✅ FIRST INSERTION AS "extraction"
   ],
   (err, results) => {
     if (!err) {
-      console.log('✓ Saved analysis to database with ID:', results.insertId);
-      
-      // ✅ DUAL INSERTION WITH PROPER LANGUAGE DETECTION
-      const translatorQuery = `
-        INSERT INTO image_analysis_translator 
-        (user_id, filename, extracted_text, translated_text, objects_json, 
-         source_language, target_language, processing_time, confidence_score, analysis_type) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      
-      connection.query(
-        translatorQuery,
-        [
-          userId,                                    // user_id
-          req.file.originalname,                     // filename  
-          finalText,                                 // extracted_text
-          '',                                        // translated_text (empty for now)
-          JSON.stringify(limitedObjects),            // objects_json
-          detectedSourceLang,                        // source_language (detected code: 'ko', 'ja', 'fr')
-          'en',                                      // target_language (default to English)
-          `${elapsed}s`,                             // processing_time
-          confidence,                                // confidence_score
-          textDetection.hasText ? 'text_heavy' : 'image_heavy' // analysis_type
-        ],
-        (translatorErr, translatorResults) => {
-          if (translatorErr) {
-            console.error('❌ Failed to save to image_analysis_translator:', translatorErr);
-          } else {
-            console.log('💾 Also saved to image_analysis_translator with ID:', translatorResults.insertId);
-            console.log(`🌐 Source language detected: ${detectedSourceLang}`);
-          }
-        }
-      );
-      
+      console.log('✅ Saved extraction results to image_analysis with ID:', results.insertId);
     } else {
-      console.error('Failed to save analysis:', err);
+      console.error('❌ Failed to save extraction results:', err);
     }
   }
 );
+
+    // Send response immediately
+    res.json(responseData);
+
   } catch (err) {
     // Cleanup on error
     processedFiles.forEach(p => {
@@ -527,9 +474,9 @@ connection.query(
       } catch (e) {}
     });
     
-    console.error('❌ INTELLIGENT ANALYSIS ERROR:', err.message);
+    console.error('❌ EXTRACTION ERROR:', err.message);
     res.status(500).json({
-      error: 'Analysis failed',
+      error: 'Extraction failed',
       details: err.message
     });
   }

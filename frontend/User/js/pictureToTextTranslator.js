@@ -218,6 +218,7 @@ function resetFileInput() {
 }
 
 // ✅ FIXED: Use proven extraction endpoint and separate extraction/translation
+// ✅ FIXED: Use extraction endpoint for upload
 async function handleUpload() {
   if (!imageInput || !imageInput.files.length) {
     alert('Please select an image first.');
@@ -234,10 +235,11 @@ async function handleUpload() {
   resetResults();
   showProcessing(true);
   
-  // ✅ CLEAR translation container and disable language dropdown
-  if (translatedResult) translatedResult.textContent = 'Select a language to translate...';
-  if (langSelect) langSelect.disabled = true;
-  if (copyTranslatedBtn) copyTranslatedBtn.disabled = true;
+  // ✅ DISABLE language dropdown until extraction completes
+  if (langSelect) {
+    langSelect.disabled = true;
+    langSelect.style.opacity = '0.6';
+  }
 
   const formData = new FormData();
   formData.append('image', imageInput.files[0]);
@@ -254,7 +256,7 @@ async function handleUpload() {
       languageText.textContent = languageSelect.options[languageSelect.selectedIndex].text;
     }
     
-    // ✅ STEP 1: Use PROVEN extraction endpoint (from picturetotext.js)
+    // ✅ STEP 1: Use EXTRACTION-ONLY endpoint
     const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
       method: 'POST',
       body: formData
@@ -290,25 +292,10 @@ async function handleUpload() {
   } catch (error) {
     console.error('Upload error:', error);
     if (statusText) statusText.textContent = 'Extraction failed';
-    if (timeText) timeText.textContent = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
     
-    let errorMessage = `Error: ${error.message}\n\n`;
-    
-    if (error.message.includes('Failed to fetch')) {
-      errorMessage += 'Cannot connect to server. Make sure the backend is running on port 3000.';
-    } else if (error.message.includes('404')) {
-      errorMessage += 'Server endpoint not found. Check your API routes.';
-    } else {
-      errorMessage += 'Please try again with a different image.';
-    }
-    
+    let errorMessage = `Error: ${error.message}`;
     if (textResult) textResult.textContent = errorMessage;
     if (translatedResult) translatedResult.textContent = 'Translation unavailable';
-    
-    // Show error in all result areas
-    if (objectsGrid) objectsGrid.innerHTML = '<div class="object-card">Error during analysis</div>';
-    if (objectsDescription) objectsDescription.textContent = 'Analysis failed - check server connection';
-    if (combinedResult) combinedResult.textContent = errorMessage;
     
   } finally {
     // Re-enable upload button
@@ -321,7 +308,7 @@ async function handleUpload() {
   }
 }
 
-// ✅ ADD: Automatic translation function (from translator.js)
+/// ✅ FIXED: Make sure objectsData is passed correctly
 async function translateTextManually(text, targetLang) {
     if (!text || text.trim().length === 0) {
         return { translated: '', detected: 'unknown', success: false };
@@ -330,7 +317,20 @@ async function translateTextManually(text, targetLang) {
     try {
         console.log('🌍 Manual translation to:', targetLang);
         
-        // Use the translator endpoint directly
+        // ✅ GET ALL REQUIRED DATA FROM CURRENT ANALYSIS
+        const filename = currentAnalysisData ? currentAnalysisData.filename : 
+                        (imageInput.files[0] ? imageInput.files[0].name : 'unknown');
+        
+        const processingTime = currentAnalysisData ? currentAnalysisData.processingTime : '0s';
+        const confidenceScore = currentAnalysisData ? (currentAnalysisData.ocr?.confidence || 0) : 0;
+        
+        // ✅ FIX: Get objects data correctly
+        let objectsData = null;
+        if (currentAnalysisData && currentAnalysisData.objects) {
+            objectsData = currentAnalysisData.objects.detected || currentAnalysisData.objects;
+        }
+        
+        // Use the translator endpoint with all parameters
         const response = await fetch('http://localhost:3000/translator/translate', {
             method: 'POST',
             headers: {
@@ -338,7 +338,11 @@ async function translateTextManually(text, targetLang) {
             },
             body: JSON.stringify({ 
                 text: text, 
-                to: targetLang 
+                to: targetLang,
+                filename: filename,
+                processingTime: processingTime,
+                confidenceScore: confidenceScore,
+                objectsData: objectsData // ✅ PASS OBJECTS DATA
             })
         });
 
@@ -352,7 +356,7 @@ async function translateTextManually(text, targetLang) {
             throw new Error(data.error);
         }
 
-        console.log('✅ Manual translation successful');
+        console.log('✅ Translation saved/updated with objects data');
         return {
             translated: data.translated || data.text || text,
             detected: data.detected || 'unknown',
@@ -368,6 +372,8 @@ async function translateTextManually(text, targetLang) {
         };
     }
 }
+
+
 // ✅ FIXED: Reset both containers separately
 function resetResults() {
     if (textResult) textResult.textContent = 'Processing... Please wait.';
@@ -1296,12 +1302,10 @@ if (langSelect) {
     langSelect.addEventListener('change', async () => {
         console.log('🔄 Language changed to:', langSelect.value);
         
-        // ✅ FIXED: Use textResult instead of extractedResult for extraction text
+        // Get extracted text from extraction container
         let extractedText = '';
         if (textResult) {
             extractedText = textResult.textContent;
-        } else if (extractedResult) {
-            extractedText = extractedResult.textContent;
         }
         
         console.log('📝 Extracted text for translation:', extractedText ? extractedText.substring(0, 100) + '...' : 'No text found');
@@ -1311,9 +1315,7 @@ if (langSelect) {
             extractedText.trim().length > 0 && 
             !extractedText.includes('No text could be extracted') &&
             !extractedText.includes('Processing...') &&
-            !extractedText.includes('Error:') &&
-            !extractedText.includes('Extracted text will appear here') &&
-            !extractedText.includes('Upload an image to see')) {
+            !extractedText.includes('Error:')) {
             
             console.log('🔄 Auto-translating to:', langSelect.value);
             
@@ -1321,6 +1323,7 @@ if (langSelect) {
                 translatedResult.textContent = 'Translating...';
             }
             
+            // ✅ STEP 4: Call TRANSLATION-ONLY endpoint
             const result = await translateTextManually(extractedText, langSelect.value);
             
             if (result.success) {
@@ -1517,7 +1520,8 @@ if (langSelect) {
 //         showTranslationRetryOption(extractedText, targetLanguage);
 //     }
 // }
-// ✅ ENHANCED: Manual translation function with better error handling
+// ✅ FIXED: Manual translation function with filename
+// ✅ FIXED: Manual translation function with proper objects data
 async function translateTextManually(text, targetLang) {
     if (!text || text.trim().length === 0) {
         return { translated: '', detected: 'unknown', success: false };
@@ -1526,7 +1530,21 @@ async function translateTextManually(text, targetLang) {
     try {
         console.log('🌍 Manual translation to:', targetLang);
         
-        // Use the translator endpoint directly
+        // ✅ GET ALL REQUIRED DATA FROM CURRENT ANALYSIS
+        const filename = currentAnalysisData ? currentAnalysisData.filename : 
+                        (imageInput.files[0] ? imageInput.files[0].name : 'unknown');
+        
+        const processingTime = currentAnalysisData ? currentAnalysisData.processingTime : '0s';
+        const confidenceScore = currentAnalysisData ? (currentAnalysisData.ocr?.confidence || 0) : 0;
+        
+        // ✅ FIX: Get objects data correctly
+        let objectsData = null;
+        if (currentAnalysisData && currentAnalysisData.objects) {
+            objectsData = currentAnalysisData.objects.detected || currentAnalysisData.objects;
+            console.log('📦 Objects data for insertion:', objectsData);
+        }
+        
+        // Use the translator endpoint with all parameters
         const response = await fetch('http://localhost:3000/translator/translate', {
             method: 'POST',
             headers: {
@@ -1534,7 +1552,11 @@ async function translateTextManually(text, targetLang) {
             },
             body: JSON.stringify({ 
                 text: text, 
-                to: targetLang 
+                to: targetLang,
+                filename: filename,
+                processingTime: processingTime,
+                confidenceScore: confidenceScore,
+                objectsData: objectsData // ✅ PASS OBJECTS DATA
             })
         });
 
@@ -1548,7 +1570,7 @@ async function translateTextManually(text, targetLang) {
             throw new Error(data.error);
         }
 
-        console.log('✅ Manual translation successful');
+        console.log('✅ Translation saved with objects data and confidence:', confidenceScore);
         return {
             translated: data.translated || data.text || text,
             detected: data.detected || 'unknown',
@@ -1565,22 +1587,32 @@ async function translateTextManually(text, targetLang) {
     }
 }
 
-// ✅ ADD THIS FUNCTION: Retry translation with manual method
+// ✅ FIXED: retryTranslation function with null checks
 async function retryTranslation() {
-    const extractedText = extractedResult.textContent;
-    const targetLang = langSelect.value;
+    // ✅ ADD NULL CHECKS
+    let extractedText = '';
+    if (extractedResult && extractedResult.textContent) {
+        extractedText = extractedResult.textContent;
+    } else if (textResult && textResult.textContent) {
+        extractedText = textResult.textContent;
+    } else {
+        console.log('❌ No extracted text available for retry');
+        return;
+    }
+    
+    const targetLang = langSelect ? langSelect.value : 'en';
     
     if (!extractedText || extractedText.includes('No text could be extracted') || targetLang === 'en') {
         return;
     }
     
     try {
-        translatedResult.textContent = '🔄 Retrying translation...';
+        if (translatedResult) translatedResult.textContent = '🔄 Retrying translation...';
         const result = await translateTextManually(extractedText, targetLang);
         
         if (result.success) {
-            translatedResult.textContent = result.translated;
-            languageInfo.textContent = `🌍 Detected: ${result.detected} → ${supportedLanguages[targetLang] || targetLang}`;
+            if (translatedResult) translatedResult.textContent = result.translated;
+            if (languageInfo) languageInfo.textContent = `🌍 Detected: ${result.detected} → ${supportedLanguages[targetLang] || targetLang}`;
             
             // Make text clickable
             setTimeout(() => {
@@ -1590,39 +1622,39 @@ async function retryTranslation() {
             // Enable copy button
             if (copyTranslatedBtn) copyTranslatedBtn.disabled = false;
         } else {
-            translatedResult.textContent = `❌ Translation failed: ${result.error}\n\n${extractedText}`;
+            if (translatedResult) translatedResult.textContent = `❌ Translation failed: ${result.error}\n\n${extractedText}`;
         }
     } catch (error) {
-        translatedResult.textContent = `❌ Translation retry failed: ${error.message}`;
+        if (translatedResult) translatedResult.textContent = `❌ Translation retry failed: ${error.message}`;
     }
 }
 
-// ✅ FIXED: Event listener for language change to retry translation
-function setupTranslationRetry() {
-    if (langSelect) {
-        langSelect.addEventListener('change', () => {
-            // If we already have extracted text, retry translation with new language
-            let extractedText = '';
-            if (textResult) {
-                extractedText = textResult.textContent;
-            } else if (extractedResult) {
-                extractedText = extractedResult.textContent;
-            }
+// // ✅ FIXED: Event listener for language change to retry translation
+// function setupTranslationRetry() {
+//     if (langSelect) {
+//         langSelect.addEventListener('change', () => {
+//             // If we already have extracted text, retry translation with new language
+//             let extractedText = '';
+//             if (textResult) {
+//                 extractedText = textResult.textContent;
+//             } else if (extractedResult) {
+//                 extractedText = extractedResult.textContent;
+//             }
             
-            if (extractedText && 
-                extractedText.trim().length > 0 && 
-                !extractedText.includes('No text could be extracted') &&
-                !extractedText.includes('Extracted text will appear here') &&
-                !extractedText.includes('Upload an image to see')) {
+//             if (extractedText && 
+//                 extractedText.trim().length > 0 && 
+//                 !extractedText.includes('No text could be extracted') &&
+//                 !extractedText.includes('Extracted text will appear here') &&
+//                 !extractedText.includes('Upload an image to see')) {
                 
-                console.log('Language changed, retrying translation...');
-                setTimeout(() => {
-                    retryTranslation();
-                }, 500);
-            }
-        });
-    }
-}
+//                 console.log('Language changed, retrying translation...');
+//                 setTimeout(() => {
+//                     retryTranslation();
+//                 }, 500);
+//             }
+//         });
+//     }
+// }
 // ✅ Display object detection results
 function displayObjectResults(objectsData) {
     if (!objectsData || objectsData.count === 0) {
@@ -2257,7 +2289,7 @@ function init() {
     initCountryInfoSystem();
     
     // ✅ ADDED: Setup translation retry
-    setupTranslationRetry();
+    // setupTranslationRetry();
     
     console.log('Enhanced Picture to Text Translator with EXTRACTION FEATURES initialized!');
     

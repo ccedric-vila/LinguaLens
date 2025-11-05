@@ -59,16 +59,25 @@ function updateStatistics(data) {
         }
     }).length;
     
-    const uniqueLanguages = [...new Set(data.map(item => item.language_used).filter(Boolean))].length;
+    // Calculate average confidence
+    const validConfidences = data.filter(item => item.confidence_score && !isNaN(parseFloat(item.confidence_score)));
+    const avgConfidence = validConfidences.length > 0 
+        ? (validConfidences.reduce((sum, item) => sum + parseFloat(item.confidence_score), 0) / validConfidences.length).toFixed(1)
+        : 0;
 
-    document.getElementById('totalRecords').textContent = totalRecords;
-    document.getElementById('todayRecords').textContent = todayRecords;
-    document.getElementById('uniqueLanguages').textContent = uniqueLanguages;
+    // Safe element updates with null checks
+    const totalRecordsElem = document.getElementById('totalRecords');
+    const todayRecordsElem = document.getElementById('todayRecords');
+    const avgConfidenceElem = document.getElementById('avgConfidence');
+    
+    if (totalRecordsElem) totalRecordsElem.textContent = totalRecords;
+    if (todayRecordsElem) todayRecordsElem.textContent = todayRecords;
+    if (avgConfidenceElem) avgConfidenceElem.textContent = `${avgConfidence}%`;
 }
 
 // Function to format text content
 function formatTextContent(text) {
-    if (!text || text === 'undefined' || text === 'N/A') {
+    if (!text || text === 'undefined' || text === 'N/A' || text === 'No text extracted') {
         return '<em style="color: #78909c; font-style: italic;">No text content</em>';
     }
     
@@ -107,23 +116,37 @@ function formatDate(dateString) {
 
 // Function to get language name
 function getLanguageName(languageCode) {
-    if (!languageCode) return 'N/A';
+    if (!languageCode || languageCode === 'N/A') return 'N/A';
     const langOption = languageOptions.find(lang => lang.value === languageCode);
     return langOption ? langOption.name : languageCode.toUpperCase();
 }
 
+// Function to get confidence class
+function getConfidenceClass(confidence) {
+    const score = parseFloat(confidence);
+    if (isNaN(score)) return 'confidence-low';
+    if (score >= 80) return 'confidence-high';
+    if (score >= 60) return 'confidence-medium';
+    return 'confidence-low';
+}
+
 // Function to render table with pagination
 function renderTable(page) {
-    const tableBody = document.getElementById("ttsHistoryTableBody");
+    const tableBody = document.getElementById("historyTable");
+    if (!tableBody) {
+        console.error('historyTable element not found');
+        return;
+    }
+
     tableBody.innerHTML = "";
 
     if (!allData || allData.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="5" class="no-data">
-                    <div>🎵 No TTS history found</div>
+                <td colspan="8" class="no-data">
+                    <div>📖 No analysis history found</div>
                     <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
-                        Your text-to-speech conversion history will appear here.
+                        Your image analysis and translation history will appear here.
                     </div>
                 </td>
             </tr>`;
@@ -139,22 +162,29 @@ function renderTable(page) {
         const displayNumber = start + index + 1;
 
         row.innerHTML = `
+            <td>${displayNumber}</td>
             <td>
-                <div class="text-content">${formatTextContent(item.text_content)}</div>
+                <div class="filename">${item.filename || 'Unknown'}</div>
             </td>
             <td>
-                <span class="language-badge">${getLanguageName(item.language_used)}</span>
+                <div class="text-content">${formatTextContent(item.extracted_text)}</div>
             </td>
             <td>
-                <span class="engine-badge">${item.engine_used || 'standard'}</span>
+                <div class="text-content">${formatTextContent(item.translated_text)}</div>
             </td>
+            <td>
+                <span class="language-badge">${getLanguageName(item.source_language)}</span>
+                ${item.target_language && item.target_language !== 'N/A' ? 
+                  `<span class="language-badge">→ ${getLanguageName(item.target_language)}</span>` : ''}
+            </td>
+            <td>
+                <span class="${getConfidenceClass(item.confidence_score)}">
+                    ${item.confidence_score}%
+                </span>
+            </td>
+            <td>${item.processing_time || 'N/A'}</td>
             <td>
                 <div class="timestamp">${formatDate(item.created_at)}</div>
-            </td>
-            <td>
-                <button class="replay-btn" onclick="replayTTS('${item.text_content?.replace(/'/g, "\\'")}', '${item.engine_used || 'standard'}', '${item.language_used || 'en'}')">
-                    🔊 Play
-                </button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -162,65 +192,33 @@ function renderTable(page) {
 
     // Update pagination info
     const totalPages = Math.ceil(allData.length / rowsPerPage);
-    document.getElementById("pageInfo").textContent = `Page ${page} of ${totalPages}`;
-
-    // Enable/disable buttons
-    document.getElementById("prevPage").disabled = page === 1;
-    document.getElementById("nextPage").disabled = page === totalPages || totalPages === 0;
-}
-
-// Replay TTS function
-function replayTTS(text, engine, language) {
-    if (!text || text === 'undefined') {
-        alert("No text content available for replay.");
-        return;
+    const pageInfoElem = document.getElementById("pageInfo");
+    if (pageInfoElem) {
+        pageInfoElem.textContent = `Page ${page} of ${totalPages}`;
     }
 
-    puter.ai.txt2speech(text, { 
-        engine: engine,
-        language: language
-    })
-    .then(audio => {
-        audio.play().catch(err => {
-            console.error("Audio play failed:", err);
-            alert("Failed to play audio. Please check your audio settings.");
-        });
-    })
-    .catch(err => {
-        console.error("TTS replay failed:", err);
-        alert("Failed to generate speech. Please try again.");
-    });
+    // Enable/disable buttons
+    const prevButton = document.getElementById("prevPage");
+    const nextButton = document.getElementById("nextPage");
+    
+    if (prevButton) prevButton.disabled = page === 1;
+    if (nextButton) nextButton.disabled = page === totalPages || totalPages === 0;
 }
 
 // Load history data
 async function loadHistory() {
     try {
-        const userId = localStorage.getItem("userId"); 
-        
-        if (!userId) {
-            document.getElementById("ttsHistoryTableBody").innerHTML = `
-                <tr>
-                    <td colspan="5" class="no-data">
-                        <div>🔒 User not logged in</div>
-                        <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
-                            Please log in to view your TTS history.
-                        </div>
-                    </td>
-                </tr>`;
-            return;
-        }
-
-        console.log('Fetching TTS history for user:', userId);
-        const response = await fetch(`http://localhost:3000/api/tts-history/${userId}`);
+        console.log('Fetching analysis history...');
+        const response = await fetch('http://localhost:3000/api/picturetotexthistory');
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        const history = Array.isArray(data) ? data : (data.history || []);
+        const history = Array.isArray(data) ? data : [];
         
-        console.log('TTS history loaded:', history.length, 'records');
+        console.log('Analysis history loaded:', history.length, 'records');
         
         // Update statistics
         updateStatistics(history);
@@ -231,35 +229,48 @@ async function loadHistory() {
         renderTable(currentPage);
         
     } catch (err) {
-        console.error("Error loading TTS history:", err);
-        document.getElementById("ttsHistoryTableBody").innerHTML = `
-            <tr>
-                <td colspan="5" class="no-data">
-                    <div>❌ Error loading history</div>
-                    <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
-                        Please check your connection and try again.
-                    </div>
-                </td>
-            </tr>`;
+        console.error("Error loading analysis history:", err);
+        const tableBody = document.getElementById("historyTable");
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="no-data">
+                        <div>❌ Error loading history</div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
+                            Please check your connection and try again.
+                        </div>
+                    </td>
+                </tr>`;
+        }
     }
 }
 
-// Pagination event listeners
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById("prevPage").addEventListener("click", () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderTable(currentPage);
-        }
-    });
-
-    document.getElementById("nextPage").addEventListener("click", () => {
-        const totalPages = Math.ceil(allData.length / rowsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderTable(currentPage);
-        }
-    });
+    console.log('DOM loaded, initializing history page...');
+    
+    // Add event listeners for pagination
+    const prevButton = document.getElementById("prevPage");
+    const nextButton = document.getElementById("nextPage");
+    
+    if (prevButton) {
+        prevButton.addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable(currentPage);
+            }
+        });
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener("click", () => {
+            const totalPages = Math.ceil(allData.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable(currentPage);
+            }
+        });
+    }
 
     // Initial load
     loadHistory();
