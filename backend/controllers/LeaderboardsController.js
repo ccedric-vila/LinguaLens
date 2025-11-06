@@ -293,3 +293,67 @@ exports.getUserStatistics = (req, res) => {
         });
     });
 };
+
+// 🌍 Most Used Languages with time filtering
+exports.getLanguagePopularityWithPeriod = (req, res) => {
+    const period = req.query.period || 'all';
+    let dateFilter = '';
+    
+    if (period === '7') {
+        dateFilter = ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+    } else if (period === '30') {
+        dateFilter = ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+    }
+
+    const query = `
+        SELECT 
+            language,
+            SUM(usage_count) as total_usage,
+            ROUND(SUM(usage_count) * 100.0 / (SELECT SUM(usage_count) FROM (
+                SELECT COUNT(*) as usage_count FROM extracted_texts WHERE source_language IS NOT NULL ${dateFilter}
+                UNION ALL SELECT COUNT(*) FROM extracted_texts WHERE target_language IS NOT NULL ${dateFilter}
+                UNION ALL SELECT COUNT(*) FROM tts_history WHERE language_used IS NOT NULL ${dateFilter}
+                UNION ALL SELECT COUNT(*) FROM image_analysis WHERE language_used IS NOT NULL ${dateFilter}
+                UNION ALL SELECT COUNT(*) FROM image_analysis_translator WHERE source_language IS NOT NULL ${dateFilter}
+                UNION ALL SELECT COUNT(*) FROM image_analysis_translator WHERE target_language IS NOT NULL ${dateFilter}
+            ) total), 2) as percentage
+        FROM (
+            SELECT source_language as language, COUNT(*) as usage_count 
+            FROM extracted_texts WHERE source_language IS NOT NULL ${dateFilter} GROUP BY source_language
+            UNION ALL
+            SELECT target_language, COUNT(*) 
+            FROM extracted_texts WHERE target_language IS NOT NULL ${dateFilter} GROUP BY target_language
+            UNION ALL
+            SELECT language_used, COUNT(*) 
+            FROM tts_history WHERE language_used IS NOT NULL ${dateFilter} GROUP BY language_used
+            UNION ALL
+            SELECT language_used, COUNT(*) 
+            FROM image_analysis WHERE language_used IS NOT NULL ${dateFilter} GROUP BY language_used
+            UNION ALL
+            SELECT source_language, COUNT(*) 
+            FROM image_analysis_translator WHERE source_language IS NOT NULL ${dateFilter} GROUP BY source_language
+            UNION ALL
+            SELECT target_language, COUNT(*) 
+            FROM image_analysis_translator WHERE target_language IS NOT NULL ${dateFilter} GROUP BY target_language
+        ) all_languages
+        WHERE language NOT LIKE '%auto%' AND language NOT LIKE '%detect%'
+        GROUP BY language
+        ORDER BY total_usage DESC
+        LIMIT 10
+    `;
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching language popularity with period:', err);
+            return res.status(500).json({ 
+                success: false,
+                message: 'Database error', 
+                error: err.message 
+            });
+        }
+        res.json({
+            success: true,
+            data: results
+        });
+    });
+};

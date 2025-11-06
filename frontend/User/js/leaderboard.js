@@ -1,8 +1,5 @@
 // public/js/leaderboard.js - ENHANCED VERSION
-let currentPage = 1;
-const rowsPerPage = 10;
-let allData = [];
-let currentView = 'overall';
+let currentLanguagePeriod = 'all';
 
 // API Base URL - Change this to your backend URL
 const API_BASE_URL = 'http://localhost:3000/api/leaderboards';
@@ -34,9 +31,53 @@ const languageToCountries = {
     "cy": ["GB"], "xh": ["ZA"], "yi": ["IL"], "yo": ["NG"], "zu": ["ZA"]
 };
 
+// Language names mapping
+const languageNames = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh-cn": "Chinese (Simplified)",
+    "zh-tw": "Chinese (Traditional)",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "bn": "Bengali",
+    "pa": "Punjabi",
+    "te": "Telugu",
+    "mr": "Marathi",
+    "ta": "Tamil",
+    "ur": "Urdu",
+    "gu": "Gujarati",
+    "pl": "Polish",
+    "uk": "Ukrainian",
+    "ro": "Romanian",
+    "nl": "Dutch",
+    "el": "Greek",
+    "cs": "Czech",
+    "sv": "Swedish",
+    "hu": "Hungarian",
+    "fi": "Finnish",
+    "no": "Norwegian",
+    "da": "Danish",
+    "tr": "Turkish",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "id": "Indonesian",
+    "ms": "Malay",
+    "tl": "Tagalog",
+    "fa": "Persian",
+    "he": "Hebrew",
+    "iw": "Hebrew"
+};
+
 // Convert country code to flag emoji
 function getFlagEmoji(countryCode) {
-    if (!countryCode) return '🌐';
+    if (!countryCode) return '🌍';
     const codePoints = countryCode
         .toUpperCase()
         .split('')
@@ -51,149 +92,22 @@ function getLanguageFlag(languageCode) {
     if (countries && countries.length > 0) {
         return getFlagEmoji(countries[0]);
     }
-    return '🌐';
+    return '🌍';
 }
 
-// Function to render table with pagination
-function renderTable(page) {
-    const table = document.getElementById("leaderboardTable");
-    const pagination = document.getElementById("pagination");
-    table.innerHTML = "";
-
-    if (!allData.length) {
-        table.innerHTML = `<tr><td colspan="4" class="no-data">No data found</td></tr>`;
-        pagination.style.display = 'none';
-        return;
-    }
-
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const paginatedData = allData.slice(start, end);
-
-    paginatedData.forEach((row, index) => {
-        const tr = document.createElement("tr");
-        const globalIndex = start + index;
-        
-        if (currentView === 'engagement') {
-            tr.innerHTML = `
-                <td>${escapeHtml(row.user_level)}</td>
-                <td class="center activities">${row.user_count}</td>
-                <td class="center activities">${row.percentage}%</td>
-            `;
-            table.appendChild(tr);
-            return;
-        } 
-        
-        if (currentView === 'languages') {
-            const flag = getLanguageFlag(row.language);
-            tr.innerHTML = `
-                <td>
-                    <div class="language-cell">
-                        <span class="flag-icon">${flag}</span>
-                        <div class="language-info">
-                            <span class="language-name">${escapeHtml(row.language)}</span>
-                            <span class="language-code">${row.language.toUpperCase()}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="center activities">${row.total_usage}</td>
-                <td class="center activities">${row.percentage}%</td>
-            `;
-            table.appendChild(tr);
-            return;
-        }
-
-        if (currentView === 'tts-engines') {
-            tr.innerHTML = `
-                <td>
-                    <span class="engine-badge">${escapeHtml(row.engine_used || 'Unknown')}</span>
-                </td>
-                <td class="center activities">${row.total_usage}</td>
-                <td class="center activities">${row.unique_users}</td>
-                <td class="center activities">${row.percentage}%</td>
-            `;
-            table.appendChild(tr);
-            return;
-        }
-
-        // User ranking views
-        let activityCount, rank;
-        if (currentView === 'overall') {
-            activityCount = row.total_activities;
-            rank = globalIndex + 1;
-        } else {
-            activityCount = row.activities_this_week || row.activities_this_month;
-            rank = row.rank_position;
-        }
-
-        const initials = getUserInitials(row.name);
-        const memberSince = row.member_since ? new Date(row.member_since).toLocaleDateString() : "N/A";
-
-        tr.innerHTML = `
-            <td class="rank rank-${rank}">${rank}</td>
-            <td>
-                <div class="user-info">
-                    <div class="avatar">${initials}</div>
-                    <div class="user-details">
-                        <div class="name">${escapeHtml(row.name || 'Unknown User')}</div>
-                        <div class="email">${escapeHtml(row.email || 'No email')}</div>
-                    </div>
-                </div>
-            </td>
-            <td class="activities">${activityCount}</td>
-            <td class="member-since">${memberSince}</td>
-        `;
-        table.appendChild(tr);
-    });
-
-    // Show/hide pagination
-    if (allData.length > rowsPerPage) {
-        pagination.style.display = 'flex';
-        document.getElementById("pageInfo").textContent =
-            `Page ${page} of ${Math.ceil(allData.length / rowsPerPage)}`;
-        document.getElementById("prevPage").disabled = page === 1;
-        document.getElementById("nextPage").disabled = end >= allData.length;
-    } else {
-        pagination.style.display = 'none';
-    }
+// Get language display name
+function getLanguageName(languageCode) {
+    const lowerCode = languageCode.toLowerCase();
+    return languageNames[lowerCode] || languageCode.toUpperCase();
 }
 
-// Load leaderboard data
-async function loadLeaderboard(type, timeframe = 'weekly') {
-    currentView = type;
-    currentPage = 1;
-    
+// Load language popularity data
+async function loadLanguagePopularity(period = 'all') {
     try {
-        // Update active tab
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        const activeBtn = document.querySelector(`[data-type="${type}"]`);
-        if (activeBtn) activeBtn.classList.add('active');
-        
-        // Show/hide time filter
-        const timeFilter = document.getElementById('timeFilter');
-        if (type === 'timeframe') {
-            timeFilter.classList.add('show');
-            type = timeframe;
-        } else {
-            timeFilter.classList.remove('show');
-        }
-        
-        // Update title
-        const titles = {
-            'overall': '📊 Overall Leaderboard',
-            'weekly': '📅 Weekly Leaderboard',
-            'monthly': '📅 Monthly Leaderboard',
-            'engagement': '🎯 User Engagement Levels',
-            'languages': '🌍 Most Used Languages',
-            'tts-engines': '🔊 TTS Engine Statistics'
-        };
-        document.getElementById("leaderboardTitle").textContent = titles[type];
-        
-        // Show loading
-        document.getElementById("leaderboardTable").innerHTML = 
-            `<tr><td colspan="4" class="loading">Loading ${titles[type].toLowerCase()}...</td></tr>`;
+        const languagesList = document.getElementById('languagesList');
+        languagesList.innerHTML = '<div class="loading">Loading languages data...</div>';
 
-        const res = await fetch(`${API_BASE_URL}/${type}`);
+        const res = await fetch(`${API_BASE_URL}/languages?period=${period}`);
         
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
@@ -201,59 +115,146 @@ async function loadLeaderboard(type, timeframe = 'weekly') {
         
         const result = await res.json();
 
-        if (result.success) {
-            allData = result.data || [];
-            updateTableHeaders(type);
-            renderTable(currentPage);
+        if (result.success && result.data) {
+            // Filter out auto-detect and invalid languages
+            const languages = result.data.filter(lang => 
+                lang.language && 
+                lang.language.toLowerCase() !== 'auto' && 
+                !lang.language.toLowerCase().includes('detect')
+            );
+            
+            if (languages.length === 0) {
+                languagesList.innerHTML = '<div class="no-data">No language data available</div>';
+                return;
+            }
+
+            let html = '';
+            languages.slice(0, 10).forEach(lang => {
+                const flag = getLanguageFlag(lang.language);
+                const name = getLanguageName(lang.language);
+                html += `
+                    <div class="language-item">
+                        <div class="flag-icon">${flag}</div>
+                        <div class="language-info">
+                            <div class="language-name">
+                                ${escapeHtml(name)}
+                                <span class="language-usage">${lang.total_usage || 0}</span>
+                            </div>
+                            <div class="language-code">${lang.language.toUpperCase()}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            languagesList.innerHTML = html;
         } else {
-            throw new Error(result.message || 'Failed to load data');
+            throw new Error(result.message || 'Failed to load language data');
         }
     } catch (err) {
-        console.error("Error loading leaderboard:", err);
-        document.getElementById("leaderboardTable").innerHTML =
-            `<tr><td colspan="4" class="error">Error loading data: ${err.message}</td></tr>`;
-        document.getElementById("pagination").style.display = 'none';
+        console.error("Error loading language popularity:", err);
+        document.getElementById('languagesList').innerHTML = 
+            `<div class="error">Error loading language data: ${err.message}</div>`;
     }
 }
 
-// Update table headers based on view
-function updateTableHeaders(type) {
-    const thead = document.getElementById("tableHead");
-    
-    if (type === 'engagement') {
-        thead.innerHTML = `
-            <tr>
-                <th>Engagement Level</th>
-                <th class="center">User Count</th>
-                <th class="center">Percentage</th>
-            </tr>
-        `;
-    } else if (type === 'languages') {
-        thead.innerHTML = `
-            <tr>
-                <th>Language</th>
-                <th class="center">Total Usage</th>
-                <th class="center">Percentage</th>
-            </tr>
-        `;
-    } else if (type === 'tts-engines') {
-        thead.innerHTML = `
-            <tr>
-                <th>TTS Engine</th>
-                <th class="center">Total Usage</th>
-                <th class="center">Unique Users</th>
-                <th class="center">Percentage</th>
-            </tr>
-        `;
-    } else {
-        thead.innerHTML = `
-            <tr>
-                <th>Rank</th>
-                <th>User</th>
-                <th class="center">Activities</th>
-                <th>Member Since</th>
-            </tr>
-        `;
+// Load TTS engine statistics
+async function loadTTSEngineStats() {
+    try {
+        const enginesList = document.getElementById('enginesList');
+        enginesList.innerHTML = '<div class="loading">Loading engines data...</div>';
+
+        const res = await fetch(`${API_BASE_URL}/tts-engines`);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const result = await res.json();
+
+        if (result.success && result.data) {
+            const engines = result.data;
+            
+            if (engines.length === 0) {
+                enginesList.innerHTML = '<div class="no-data">No engine data available</div>';
+                return;
+            }
+
+            let html = '';
+            engines.forEach(engine => {
+                html += `
+                    <div class="engine-item">
+                        <div class="engine-icon">🤖</div>
+                        <div class="engine-info">
+                            <div class="engine-name">
+                                ${escapeHtml(engine.engine_used || 'Unknown')}
+                                <span class="engine-usage">${engine.total_usage || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            enginesList.innerHTML = html;
+        } else {
+            throw new Error(result.message || 'Failed to load engine data');
+        }
+    } catch (err) {
+        console.error("Error loading TTS engine stats:", err);
+        document.getElementById('enginesList').innerHTML = 
+            `<div class="error">Error loading engine data: ${err.message}</div>`;
+    }
+}
+
+// Load top users
+async function loadTopUsers() {
+    try {
+        const usersList = document.getElementById('usersList');
+        usersList.innerHTML = '<div class="loading">Loading users data...</div>';
+
+        const res = await fetch(`${API_BASE_URL}/overall`);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const result = await res.json();
+
+        if (result.success && result.data) {
+            const users = result.data;
+            
+            if (users.length === 0) {
+                usersList.innerHTML = '<div class="no-data">No user data available</div>';
+                return;
+            }
+
+            let html = '';
+            users.slice(0, 10).forEach((user, index) => {
+                const rank = index + 1;
+                const initials = getUserInitials(user.name);
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                html += `
+                    <div class="user-ranking">
+                        <div class="rank ${rankClass}">${rank}</div>
+                        <div class="user-info">
+                            <div class="avatar">${initials}</div>
+                            <div class="user-details">
+                                <div class="name">${escapeHtml(user.name || 'Unknown User')}</div>
+                                <div class="email">${escapeHtml(user.email || 'No email')}</div>
+                            </div>
+                        </div>
+                        <div class="user-activities">${user.total_activities || 0}</div>
+                    </div>
+                `;
+            });
+            
+            usersList.innerHTML = html;
+        } else {
+            throw new Error(result.message || 'Failed to load user data');
+        }
+    } catch (err) {
+        console.error("Error loading top users:", err);
+        document.getElementById('usersList').innerHTML = 
+            `<div class="error">Error loading user data: ${err.message}</div>`;
     }
 }
 
@@ -273,12 +274,23 @@ async function loadUserStats() {
             document.getElementById('totalUsers').textContent = stats.total_users || 0;
             document.getElementById('newUsers7Days').textContent = stats.new_users_last_7_days || 0;
             document.getElementById('newUsers30Days').textContent = stats.new_users_last_30_days || 0;
+            
+            // Get total activities from overall leaderboard
+            const resOverall = await fetch(`${API_BASE_URL}/overall`);
+            if (resOverall.ok) {
+                const resultOverall = await resOverall.json();
+                if (resultOverall.success && resultOverall.data) {
+                    const totalActivities = resultOverall.data.reduce((sum, user) => sum + (user.total_activities || 0), 0);
+                    document.getElementById('totalActivities').textContent = totalActivities;
+                }
+            }
         }
     } catch (err) {
         console.error("Error loading user stats:", err);
         document.getElementById('totalUsers').textContent = 'Error';
         document.getElementById('newUsers7Days').textContent = 'Error';
         document.getElementById('newUsers30Days').textContent = 'Error';
+        document.getElementById('totalActivities').textContent = 'Error';
     }
 }
 
@@ -298,61 +310,43 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-// Pagination buttons
-document.getElementById("prevPage").addEventListener("click", () => {
-    if (currentPage > 1) {
-        currentPage--;
-        renderTable(currentPage);
-    }
-});
-
-document.getElementById("nextPage").addEventListener("click", () => {
-    if (currentPage < Math.ceil(allData.length / rowsPerPage)) {
-        currentPage++;
-        renderTable(currentPage);
-    }
-});
-
-// Tab button event listeners
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const type = e.target.getAttribute('data-type');
-        if (type === 'timeframe') {
-            const timeframe = document.getElementById('timeFilter').value;
-            loadLeaderboard('timeframe', timeframe);
-        } else {
-            loadLeaderboard(type);
-        }
-    });
-});
-
-// Time filter change
-document.getElementById('timeFilter').addEventListener('change', (e) => {
-    loadLeaderboard('timeframe', e.target.value);
-});
-
-// Refresh button
-document.getElementById("refreshBtn").addEventListener("click", () => {
-    if (currentView === 'weekly' || currentView === 'monthly') {
-        loadLeaderboard('timeframe', currentView);
-    } else {
-        loadLeaderboard(currentView);
-    }
-    loadUserStats();
-});
-
-// Auto-refresh every 2 minutes
-setInterval(() => {
-    if (currentView === 'weekly' || currentView === 'monthly') {
-        loadLeaderboard('timeframe', currentView);
-    } else {
-        loadLeaderboard(currentView);
-    }
-    loadUserStats();
-}, 120000);
-
-// Initial load
+// Initialize everything when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    loadLeaderboard('overall');
+    // Time tab event listeners
+    document.querySelectorAll('.time-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            // Update active tab
+            document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Load data for selected period
+            currentLanguagePeriod = e.target.getAttribute('data-period');
+            loadLanguagePopularity(currentLanguagePeriod);
+        });
+    });
+
+    // Refresh button
+    const refreshBtn = document.getElementById("refreshBtn");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", () => {
+            loadLanguagePopularity(currentLanguagePeriod);
+            loadTTSEngineStats();
+            loadTopUsers();
+            loadUserStats();
+        });
+    }
+
+    // Auto-refresh every 2 minutes
+    setInterval(() => {
+        loadLanguagePopularity(currentLanguagePeriod);
+        loadTTSEngineStats();
+        loadTopUsers();
+        loadUserStats();
+    }, 120000);
+
+    // Initial load
+    loadLanguagePopularity('all');
+    loadTTSEngineStats();
+    loadTopUsers();
     loadUserStats();
 });

@@ -24,7 +24,7 @@ const copyAllBtn = document.getElementById('copyAllBtn');
 // Add this function at the top of the file (after the currentAnalysisData declaration)
 function getAuthHeaders() {
     const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userid');
+    const userId = localStorage.getItem('userId');
     
     const headers = {};
     if (token) {
@@ -34,17 +34,21 @@ function getAuthHeaders() {
         headers['X-User-ID'] = userId;
     }
     
-    console.log('🔐 Auth headers:', { token: !!token, userId: userId });
+    console.log('🔐 Auth headers:', { 
+        hasToken: !!token, 
+        userId: userId,
+        userIdType: typeof userId 
+    });
     return headers;
-}
+} 
 
 // Then modify the fetch request in handleUpload function:
-const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
-    method: 'POST',
-    body: formData,
-    credentials: 'include',
-    headers: getAuthHeaders() // ✅ Add auth headers
-});
+// const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
+//     method: 'POST',
+//     body: formData,
+//     credentials: 'include',
+//     headers: getAuthHeaders() // ✅ Add auth headers
+// });
 let currentAnalysisData = null;
 
 // Initialize button state
@@ -139,30 +143,38 @@ function resetFileInput() {
 // Analyze button click handler
 uploadBtn.addEventListener('click', handleUpload);
 
+// Fix the handleUpload function - around line 161
+
 async function handleUpload() {
   if (!imageInput.files.length) {
     alert('Please select an image first.');
     return;
   }
 
-  // Disable button during upload
   uploadBtn.disabled = true;
   uploadBtn.textContent = 'Processing...';
 
-  // Reset UI
   resetResults();
   showProcessing(true);
   
   const formData = new FormData();
   formData.append('image', imageInput.files[0]);
   
-  // Get selected language
   const selectedLanguage = languageSelect.value;
   formData.append('language', selectedLanguage);
+  
+  // ✅ ADD USER ID TO FORMDATA (not headers!)
+  const userId = localStorage.getItem('userId');
+  if (userId) {
+    formData.append('userId', userId);
+    console.log('👤 Adding user ID to form:', userId);
+  } else {
+    console.warn('⚠️ No user ID found in localStorage');
+  }
 
   console.log('🚀 Starting analysis...');
   console.log('📁 File:', imageInput.files[0].name);
-  console.log('🌐 Language:', selectedLanguage);
+  console.log('🌍 Language:', selectedLanguage);
 
   const startTime = Date.now();
 
@@ -170,10 +182,12 @@ async function handleUpload() {
     statusText.textContent = 'Uploading and analyzing image...';
     languageText.textContent = languageSelect.options[languageSelect.selectedIndex].text;
     
+    // ✅ NO CUSTOM HEADERS - userId is in FormData body
     const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
       method: 'POST',
       body: formData,
-      credentials: 'include' 
+      credentials: 'include'
+      // DON'T set headers - browser needs to set Content-Type automatically
     });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -188,24 +202,20 @@ async function handleUpload() {
     console.log('✅ Analysis complete!');
     console.log('📊 Response:', data);
 
-    // Store analysis data
     currentAnalysisData = data;
     
-    // Update processing info
     timeText.textContent = data.processingTime || `${elapsed}s`;
     engineText.textContent = data.ocr?.engine || 'Unknown';
     languageText.textContent = data.languageUsed || selectedLanguage;
     objectsCount.textContent = data.objects?.count || 0;
     statusText.textContent = '✅ Analysis completed successfully';
     
-    // Log OCR results for debugging
     console.log('📝 Extracted text length:', data.ocr?.text?.length || 0);
     console.log('💯 Confidence:', data.ocr?.confidence || 0);
     if (data.ocr?.text) {
       console.log('📄 Text preview:', data.ocr.text.substring(0, 100) + '...');
     }
     
-    // Display results
     displayResults(data);
     
   } catch (error) {
@@ -232,13 +242,12 @@ async function handleUpload() {
     combinedResult.textContent = errorMessage;
     
   } finally {
-    // Re-enable upload button
     setTimeout(() => {
       uploadBtn.disabled = false;
       uploadBtn.textContent = 'Analyze Again';
     }, 1000);
   }
-}
+} 
 
 function resetResults() {
   textResult.textContent = 'Processing... Please wait.';

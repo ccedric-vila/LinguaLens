@@ -132,21 +132,7 @@ function initializeDOMElements() {
     
     return true;
 }
-function getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userid');
-    
-    const headers = {};
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (userId) {
-        headers['X-User-ID'] = userId;
-    }
-    
-    console.log('🔐 Auth headers:', { token: !!token, userId: userId });
-    return headers;
-}
+
 // ✅ Load bookmarked languages from localStorage
 function loadBookmarkedLanguages() {
     const saved = localStorage.getItem('bookmarkedLanguages');
@@ -410,13 +396,20 @@ async function translateText() {
     try {
         setLoadingState(true);
         
-        const response = await fetch('http://localhost:3000/translator/translate', {
+        const userId = localStorage.getItem('userId');
+const requestBody = { 
+    text, 
+    to,
+    userId: userId // ✅ Add this line
+};
+
+const response = await fetch('http://localhost:3000/translator/translate', {
     method: 'POST',
     headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders() // ✅ ADD THIS LINE
+        'Content-Type': 'application/json'
+        // ❌ REMOVE: ...getAuthHeaders()
     },
-    body: JSON.stringify({ text, to })
+    body: JSON.stringify(requestBody)
 });
 
         const data = await response.json();

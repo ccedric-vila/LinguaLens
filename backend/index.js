@@ -8,8 +8,16 @@ const fs = require('fs');
 const app = express();
 const cors = require('cors');
 
+
+
 // ✅ Enable CORS
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost', // Your frontend origin
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-ID'],
+  exposedHeaders: ['Content-Type']
+}));
 
 // ✅ Connect to database
 require('./config/db');

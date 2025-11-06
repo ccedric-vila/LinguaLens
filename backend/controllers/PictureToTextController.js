@@ -7,6 +7,40 @@ const path = require('path');
 const { spawn } = require('child_process');
 const ObjectDetectionController = require('./ObjectDetectionController');
 
+function extractUserId(req) {
+    console.log('🔍 Extracting user ID from request...');
+    
+    // Method 1: Check request body (BEST for JSON requests) ✅
+    if (req.body && req.body.userId) {
+        const userId = parseInt(req.body.userId);
+        if (!isNaN(userId)) {
+            console.log('✅ User ID from request body:', userId);
+            return userId;
+
+    }
+  }
+
+  // Method 2: Check X-User-ID header (fallback)
+  if (req.headers['x-user-id']) {
+    const userId = parseInt(req.headers['x-user-id']);
+    if (!isNaN(userId)) {
+      console.log('✅ User ID from X-User-ID header:', userId);
+      return userId;
+    }
+  }
+
+  // Method 3: Check cookies
+  if (req.cookies && req.cookies.userId) {
+    const userId = parseInt(req.cookies.userId);
+    if (!isNaN(userId)) {
+      console.log('✅ User ID from cookie:', userId);
+      return userId;
+    }
+  }
+
+  console.log('⚠️ No user ID found in request');
+  return null;
+}
 /**
 /**
  * ENHANCED language configurations with proper script handling
@@ -630,7 +664,9 @@ const extractText = async (req, res) => {
  // In the extractText function, modify the database insertion part:
 
 // Save to database
-const userId = req.extractedUserId || null;
+const userId = extractUserId(req);
+
+console.log('👤 Attempting to save with user ID:', userId);
 
 connection.query(
   `INSERT INTO image_analysis 
@@ -638,7 +674,7 @@ connection.query(
     ocr_engine, detection_engine, processing_time, language_used, confidence_score, analysis_type) 
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   [
-    userId, // ✅ Now properly checks multiple sources
+    userId, // ✅ Now properly extracted from headers
     req.file.originalname,
     finalText,
     JSON.stringify(limitedObjects),
@@ -653,7 +689,7 @@ connection.query(
   (err, results) => {
     if (!err) {
       console.log('💾 Saved to database with ID:', results.insertId);
-      console.log('👤 User ID used:', userId); // ✅ Log the user ID for debugging
+      console.log('✅ User ID successfully saved:', userId);
     } else {
       console.error('❌ Database save failed:', err);
     }
