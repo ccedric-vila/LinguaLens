@@ -25,8 +25,9 @@ exports.translateText = async (req, res) => {
             detected: result.from.language.iso // detected language code
         };
 
-        // ✅ ALWAYS INSERT NEW RECORD (NO UPDATE)
-        if (filename) {
+        // ✅ OPTIONAL DATABASE INSERTION - ONLY IF filename PROVIDED
+        // This allows translation to work without database operations
+        if (filename && connection) {
             const userId = req.user?.id || null;
             
             const insertQuery = `
@@ -47,18 +48,19 @@ exports.translateText = async (req, res) => {
                     to, // target language
                     processingTime || `${translationTime}s`,
                     confidenceScore || 0,
-                    "extraction_with_translation", // ✅ ALWAYS "extraction_with_translation"
-                    objectsData ? JSON.stringify(objectsData) : null // ✅ INCLUDE OBJECTS DATA
+                    "extraction_with_translation",
+                    objectsData ? JSON.stringify(objectsData) : null
                 ],
                 (insertErr, insertResults) => {
                     if (insertErr) {
                         console.error('❌ Failed to insert translation record:', insertErr);
                     } else {
                         console.log('✅ Inserted translation record ID:', insertResults.insertId);
-                        console.log(`📊 Inserted with analysis_type: extraction_with_translation`);
                     }
                 }
             );
+        } else {
+            console.log('📝 Translation completed without database insertion');
         }
 
         res.json(responseData);
