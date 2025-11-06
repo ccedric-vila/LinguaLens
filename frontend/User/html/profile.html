@@ -5,85 +5,546 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile</title>
     <style>
-        body {
+        * {
             margin: 0;
-            font-family: Arial, sans-serif;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .profile-container {
-            max-width: 400px;
-            margin: 60px auto;
-            padding: 30px;
-            border-radius: 8px;
-            background: #f9f9f9;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
-        .logout-btn {
+
+        /* Animated bubbles */
+        .bubble {
             position: absolute;
-            top: 15px;
-            right: 20px;
-            background-color: #e74c3c;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            animation: rise 15s infinite ease-in;
+            box-shadow: 0 0 20px rgba(135, 206, 235, 0.4);
         }
-        .logout-btn:hover {
-            background-color: #c0392b;
+
+        .bubble:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            animation-duration: 12s;
+            animation-delay: 0s;
         }
-        #profilePhotoPreview {
+
+        .bubble:nth-child(2) {
             width: 120px;
             height: 120px;
+            left: 30%;
+            animation-duration: 15s;
+            animation-delay: 2s;
+        }
+
+        .bubble:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 50%;
+            animation-duration: 10s;
+            animation-delay: 4s;
+        }
+
+        .bubble:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            left: 70%;
+            animation-duration: 13s;
+            animation-delay: 1s;
+        }
+
+        .bubble:nth-child(5) {
+            width: 90px;
+            height: 90px;
+            left: 85%;
+            animation-duration: 14s;
+            animation-delay: 3s;
+        }
+
+        @keyframes rise {
+            0% {
+                bottom: -150px;
+                transform: translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                bottom: 110vh;
+                transform: translateX(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(135, 206, 235, 0.6);
+            border-radius: 50%;
+            animation: float-particle 8s infinite ease-in-out;
+        }
+
+        .particle:nth-child(6) { left: 15%; top: 20%; animation-delay: 0s; }
+        .particle:nth-child(7) { left: 45%; top: 30%; animation-delay: 2s; }
+        .particle:nth-child(8) { left: 75%; top: 40%; animation-delay: 4s; }
+        .particle:nth-child(9) { left: 25%; top: 60%; animation-delay: 1s; }
+        .particle:nth-child(10) { left: 65%; top: 70%; animation-delay: 3s; }
+
+        @keyframes float-particle {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0.8;
+            }
+            25% {
+                transform: translateY(-30px) translateX(20px);
+                opacity: 1;
+            }
+            50% {
+                transform: translateY(-60px) translateX(-20px);
+                opacity: 0.6;
+            }
+            75% {
+                transform: translateY(-30px) translateX(10px);
+                opacity: 1;
+            }
+        }
+
+        .profile-container {
+            max-width: 500px;
+            width: 100%;
+            padding: 45px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(135, 206, 235, 0.4),
+                        0 0 100px rgba(135, 206, 235, 0.2);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            animation: slideIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border: 3px solid rgba(135, 206, 235, 0.3);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .profile-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #87ceeb, #4fc3f7, #29b6f6, #87ceeb);
+            border-radius: 30px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            animation: rotate-border 4s linear infinite;
+        }
+
+        .profile-container:hover::before {
+            opacity: 0.6;
+        }
+
+        @keyframes rotate-border {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        .logout-btn {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c06c84 100%);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 700;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 8px 25px rgba(255, 107, 157, 0.4);
+            z-index: 10;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(255, 107, 157, 0.6);
+        }
+
+        .logout-btn:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        h2 {
+            background: linear-gradient(135deg, #29b6f6 0%, #4fc3f7 50%, #87ceeb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 38px;
+            margin-bottom: 35px;
+            font-weight: 800;
+            text-shadow: 2px 2px 10px rgba(135, 206, 235, 0.3);
+            animation: pulse-title 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-title {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .photo-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 35px;
+            animation: float-photo 3s ease-in-out infinite;
+        }
+
+        @keyframes float-photo {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .photo-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: #87ceeb;
+            border-right-color: #4fc3f7;
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #profilePhotoPreview {
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
             object-fit: cover;
-            margin: 0 auto 20px;
             display: none;
-            border: 3px solid #3498db;
+            border: 6px solid #87ceeb;
+            box-shadow: 0 10px 40px rgba(135, 206, 235, 0.5),
+                        inset 0 0 20px rgba(135, 206, 235, 0.2);
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
+            z-index: 2;
         }
+
+        #profilePhotoPreview:hover {
+            transform: scale(1.15) rotate(5deg);
+            box-shadow: 0 15px 50px rgba(135, 206, 235, 0.7),
+                        inset 0 0 30px rgba(135, 206, 235, 0.3);
+        }
+
+        .photo-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #87ceeb 0%, #4fc3f7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            border: 6px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 40px rgba(135, 206, 235, 0.5);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+        }
+
+        .photo-placeholder:hover {
+            transform: scale(1.1) rotate(-5deg);
+            box-shadow: 0 15px 50px rgba(135, 206, 235, 0.7);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            color: #29b6f6;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         input, textarea {
-            width: 90%;
-            padding: 8px;
-            margin: 8px 0;
-            border-radius: 4px;
-            border: 1px solid #ccc;
+            width: 100%;
+            padding: 16px 20px;
+            border-radius: 15px;
+            border: 3px solid #e0f7ff;
+            font-size: 15px;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+            font-family: inherit;
+            color: #333;
         }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #87ceeb;
+            background: white;
+            box-shadow: 0 0 0 6px rgba(135, 206, 235, 0.15),
+                        0 10px 30px rgba(135, 206, 235, 0.3);
+            transform: translateY(-3px) scale(1.02);
+        }
+
+        input:hover:not(:focus), textarea:hover:not(:focus) {
+            border-color: #b3e5fc;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(135, 206, 235, 0.2);
+        }
+
         input[type="file"] {
-            width: 90%;
-            padding: 8px;
-            margin: 15px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 16px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+            border: 3px dashed #87ceeb;
+            color: #29b6f6;
+            font-size: 14px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
         }
+
+        input[type="file"]::before {
+            content: '📁 Choose File';
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #87ceeb 0%, #4fc3f7 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s ease;
+            font-weight: 700;
+        }
+
+        input[type="file"]:hover::before {
+            opacity: 1;
+        }
+
+        input[type="file"]:hover {
+            border-color: #4fc3f7;
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(135, 206, 235, 0.4);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
         button[type="submit"] {
-            background: #3498db;
+            background: linear-gradient(135deg, #87ceeb 0%, #4fc3f7 50%, #29b6f6 100%);
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 5px;
+            padding: 18px 45px;
+            border-radius: 30px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 20px;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 10px 30px rgba(135, 206, 235, 0.4);
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
         }
+
+        button[type="submit"]::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button[type="submit"]:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
         button[type="submit"]:hover {
-            background: #2980b9;
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 15px 45px rgba(135, 206, 235, 0.6);
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 50%, #039be5 100%);
+        }
+
+        button[type="submit"]:active {
+            transform: translateY(-2px) scale(1.01);
+        }
+
+        input[readonly] {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            cursor: not-allowed;
+            border-color: #ddd;
+        }
+
+        .wave-line {
+            height: 3px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #87ceeb 25%, 
+                #4fc3f7 50%, 
+                #87ceeb 75%, 
+                transparent 100%);
+            margin: 30px 0;
+            animation: wave 3s ease-in-out infinite;
+            border-radius: 3px;
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleX(1); opacity: 0.6; }
+            50% { transform: scaleX(0.95); opacity: 1; }
+        }
+
+        /* Input icons animation */
+        .form-group::before {
+            content: '✨';
+            position: absolute;
+            right: 15px;
+            top: 45px;
+            font-size: 18px;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .form-group:focus-within::before {
+            opacity: 1;
+            right: 20px;
+            animation: sparkle 1s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.2) rotate(90deg); }
+            50% { transform: scale(1) rotate(180deg); }
+            75% { transform: scale(1.2) rotate(270deg); }
         }
     </style>
 </head>
 <body>
+    <!-- Animated bubbles -->
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    
+    <!-- Floating particles -->
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+
+    <a href="../html/home.html" class="logout-btn" id="homeBtn">Home</a>
+    
     <div class="profile-container">
-        <h2>User Profile</h2>
-        <img id="profilePhotoPreview" src="" alt="Profile Photo" />
+        <h2>👤 My Profile</h2>
+        
+        <div class="photo-container">
+            <div class="photo-ring"></div>
+            <img id="profilePhotoPreview" src="" alt="Profile Photo" />
+            <div class="photo-placeholder" id="photoPlaceholder">📷</div>
+        </div>
+
+        <div class="wave-line"></div>
+
         <form id="profileForm">
-            <input type="text" id="name" placeholder="Name" /><br>
-            <input type="email" id="email" placeholder="Email" readonly /><br>
-            <input type="text" id="contact_number" placeholder="Contact Number" /><br>
-            <textarea id="address" placeholder="Address" rows="3"></textarea><br>
-            <input type="file" id="profile_photo_file" name="profile_photo" accept="image/*" />
-            <button type="submit">Update Profile</button>
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" placeholder="Enter your name" />
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="Email" readonly />
+            </div>
+
+            <div class="form-group">
+                <label for="contact_number">Contact Number</label>
+                <input type="text" id="contact_number" placeholder="Enter contact number" />
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea id="address" placeholder="Enter your address" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="profile_photo_file">Profile Photo</label>
+                <input type="file" id="profile_photo_file" name="profile_photo" accept="image/*" />
+            </div>
+
+            <button type="submit"> Update Profile </button>
         </form>
     </div>
+
     <script src="../js/profile.js"></script>
+    <script>
+        // Show/hide placeholder when photo loads
+        document.getElementById('profilePhotoPreview').addEventListener('load', function() {
+            if (this.src && this.src !== window.location.href) {
+                document.getElementById('photoPlaceholder').style.display = 'none';
+                this.style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
