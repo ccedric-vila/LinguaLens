@@ -45,6 +45,18 @@ const languageOptions = [
     { value: 'lt', name: 'Lithuanian' }
 ];
 
+// Function to get confidence class for styling
+function getConfidenceClass(confidence) {
+    if (!confidence || confidence === 'N/A') return 'low';
+    
+    const score = parseFloat(confidence);
+    if (isNaN(score)) return 'low';
+    
+    if (score >= 80) return 'high';
+    if (score >= 60) return 'medium';
+    return 'low';
+}
+
 // Function to calculate statistics
 function updateStatistics(data) {
     const totalRecords = data.length;
@@ -60,24 +72,23 @@ function updateStatistics(data) {
     }).length;
     
     // Calculate average confidence
-    const validConfidences = data.filter(item => item.confidence_score && !isNaN(parseFloat(item.confidence_score)));
+    const validConfidences = data.filter(item => {
+        const score = parseFloat(item.confidence_score);
+        return !isNaN(score) && score > 0;
+    }).map(item => parseFloat(item.confidence_score));
+    
     const avgConfidence = validConfidences.length > 0 
-        ? (validConfidences.reduce((sum, item) => sum + parseFloat(item.confidence_score), 0) / validConfidences.length).toFixed(1)
+        ? (validConfidences.reduce((a, b) => a + b, 0) / validConfidences.length).toFixed(1)
         : 0;
 
-    // Safe element updates with null checks
-    const totalRecordsElem = document.getElementById('totalRecords');
-    const todayRecordsElem = document.getElementById('todayRecords');
-    const avgConfidenceElem = document.getElementById('avgConfidence');
-    
-    if (totalRecordsElem) totalRecordsElem.textContent = totalRecords;
-    if (todayRecordsElem) todayRecordsElem.textContent = todayRecords;
-    if (avgConfidenceElem) avgConfidenceElem.textContent = `${avgConfidence}%`;
+    document.getElementById('totalRecords').textContent = totalRecords;
+    document.getElementById('todayRecords').textContent = todayRecords;
+    document.getElementById('avgConfidence').textContent = avgConfidence + '%';
 }
 
 // Function to format text content
 function formatTextContent(text) {
-    if (!text || text === 'undefined' || text === 'N/A' || text === 'No text extracted') {
+    if (!text || text === 'undefined' || text === 'N/A') {
         return '<em style="color: #78909c; font-style: italic;">No text content</em>';
     }
     
@@ -116,28 +127,21 @@ function formatDate(dateString) {
 
 // Function to get language name
 function getLanguageName(languageCode) {
-    if (!languageCode || languageCode === 'N/A') return 'N/A';
+    if (!languageCode) return 'N/A';
     const langOption = languageOptions.find(lang => lang.value === languageCode);
     return langOption ? langOption.name : languageCode.toUpperCase();
-}
-
-// Function to get confidence class
-function getConfidenceClass(confidence) {
-    const score = parseFloat(confidence);
-    if (isNaN(score)) return 'confidence-low';
-    if (score >= 80) return 'confidence-high';
-    if (score >= 60) return 'confidence-medium';
-    return 'confidence-low';
 }
 
 // Function to render table with pagination
 function renderTable(page) {
     const tableBody = document.getElementById("historyTable");
+    
+    // Check if tableBody exists
     if (!tableBody) {
-        console.error('historyTable element not found');
+        console.error('Table body element not found!');
         return;
     }
-
+    
     tableBody.innerHTML = "";
 
     if (!allData || allData.length === 0) {
@@ -164,7 +168,7 @@ function renderTable(page) {
         row.innerHTML = `
             <td>${displayNumber}</td>
             <td>
-                <div class="filename">${item.filename || 'Unknown'}</div>
+                <div class="filename">${item.filename || 'Unknown File'}</div>
             </td>
             <td>
                 <div class="text-content">${formatTextContent(item.extracted_text)}</div>
@@ -173,12 +177,11 @@ function renderTable(page) {
                 <div class="text-content">${formatTextContent(item.translated_text)}</div>
             </td>
             <td>
-                <span class="language-badge">${getLanguageName(item.source_language)}</span>
-                ${item.target_language && item.target_language !== 'N/A' ? 
-                  `<span class="language-badge">→ ${getLanguageName(item.target_language)}</span>` : ''}
+                <span class="language-badge">${getLanguageName(item.source_language)}</span> → 
+                <span class="language-badge">${getLanguageName(item.target_language)}</span>
             </td>
             <td>
-                <span class="${getConfidenceClass(item.confidence_score)}">
+                <span class="confidence-${getConfidenceClass(item.confidence_score)}">
                     ${item.confidence_score}%
                 </span>
             </td>
@@ -192,85 +195,103 @@ function renderTable(page) {
 
     // Update pagination info
     const totalPages = Math.ceil(allData.length / rowsPerPage);
-    const pageInfoElem = document.getElementById("pageInfo");
-    if (pageInfoElem) {
-        pageInfoElem.textContent = `Page ${page} of ${totalPages}`;
-    }
+    document.getElementById("pageInfo").textContent = `Page ${page} of ${totalPages}`;
 
     // Enable/disable buttons
-    const prevButton = document.getElementById("prevPage");
-    const nextButton = document.getElementById("nextPage");
+    document.getElementById("prevPage").disabled = page === 1;
+    document.getElementById("nextPage").disabled = page === totalPages || totalPages === 0;
     
-    if (prevButton) prevButton.disabled = page === 1;
-    if (nextButton) nextButton.disabled = page === totalPages || totalPages === 0;
+    // Update statistics
+    updateStatistics(allData);
+}
+
+// Replay TTS function
+function replayTTS(text, engine, language) {
+    if (!text || text === 'undefined') {
+        alert("No text content available for replay.");
+        return;
+    }
+
+    puter.ai.txt2speech(text, { 
+        engine: engine,
+        language: language
+    })
+    .then(audio => {
+        audio.play().catch(err => {
+            console.error("Audio play failed:", err);
+            alert("Failed to play audio. Please check your audio settings.");
+        });
+    })
+    .catch(err => {
+        console.error("TTS replay failed:", err);
+        alert("Failed to generate speech. Please try again.");
+    });
 }
 
 // Load history data
 async function loadHistory() {
     try {
-        console.log('Fetching analysis history...');
-        const response = await fetch('http://localhost:3000/api/picturetotexthistory');
+        const userId = localStorage.getItem("userId"); 
+        
+        if (!userId) {
+            document.getElementById("historyTable").innerHTML = `
+                <tr>
+                    <td colspan="8" class="no-data">
+                        <div>🔒 User not logged in</div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
+                            Please log in to view your analysis history.
+                        </div>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        console.log('Fetching analysis history for user:', userId);
+        // ✅ CORRECTED: Use the proper endpoint with userId
+        const response = await fetch(`http://localhost:3000/api/picturetotexthistory/${userId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        const history = Array.isArray(data) ? data : [];
-        
-        console.log('Analysis history loaded:', history.length, 'records');
-        
-        // Update statistics
-        updateStatistics(history);
+        console.log('Analysis history loaded:', data.length, 'records');
         
         // Store data and render
-        allData = history;
+        allData = data;
         currentPage = 1;
         renderTable(currentPage);
         
     } catch (err) {
         console.error("Error loading analysis history:", err);
-        const tableBody = document.getElementById("historyTable");
-        if (tableBody) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="no-data">
-                        <div>❌ Error loading history</div>
-                        <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
-                            Please check your connection and try again.
-                        </div>
-                    </td>
-                </tr>`;
-        }
+        document.getElementById("historyTable").innerHTML = `
+            <tr>
+                <td colspan="8" class="no-data">
+                    <div>❌ Error loading history</div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #78909c;">
+                        Please check your connection and try again.
+                    </div>
+                </td>
+            </tr>`;
     }
 }
 
-// Initialize when DOM is loaded
+// Pagination event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing history page...');
-    
-    // Add event listeners for pagination
-    const prevButton = document.getElementById("prevPage");
-    const nextButton = document.getElementById("nextPage");
-    
-    if (prevButton) {
-        prevButton.addEventListener("click", () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable(currentPage);
-            }
-        });
-    }
-    
-    if (nextButton) {
-        nextButton.addEventListener("click", () => {
-            const totalPages = Math.ceil(allData.length / rowsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable(currentPage);
-            }
-        });
-    }
+    document.getElementById("prevPage").addEventListener("click", () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable(currentPage);
+        }
+    });
+
+    document.getElementById("nextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(allData.length / rowsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable(currentPage);
+        }
+    });
 
     // Initial load
     loadHistory();

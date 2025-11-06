@@ -260,6 +260,7 @@ async function handleUpload() {
     const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
       method: 'POST',
       body: formData
+      
     });
 
     const data = await response.json();
@@ -2289,7 +2290,7 @@ function init() {
     initCountryInfoSystem();
     
     // ✅ ADDED: Setup translation retry
-    // setupTranslationRetry();
+    setupTranslationRetry();
     
     console.log('Enhanced Picture to Text Translator with EXTRACTION FEATURES initialized!');
     

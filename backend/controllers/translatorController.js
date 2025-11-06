@@ -27,20 +27,23 @@ exports.translateText = async (req, res) => {
 
         // ✅ OPTIONAL DATABASE INSERTION - ONLY IF filename PROVIDED
         // This allows translation to work without database operations
+        // In the translateText function, modify the database insertion part:
+
+        // ✅ OPTIONAL DATABASE INSERTION - ONLY IF filename PROVIDED
         if (filename && connection) {
-            const userId = req.user?.id || null;
+            const userId = req.extractedUserId || null; // ✅ Enhanced user ID extraction
             
             const insertQuery = `
                 INSERT INTO image_analysis_translator 
                 (user_id, filename, extracted_text, translated_text, source_language, target_language, 
-                 processing_time, confidence_score, analysis_type, objects_json) 
+                processing_time, confidence_score, analysis_type, objects_json) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             
             connection.query(
                 insertQuery,
                 [
-                    userId,
+                    userId, // ✅ Now properly checks multiple sources
                     filename,
                     text, // original extracted text
                     result.text, // translated text
@@ -56,13 +59,13 @@ exports.translateText = async (req, res) => {
                         console.error('❌ Failed to insert translation record:', insertErr);
                     } else {
                         console.log('✅ Inserted translation record ID:', insertResults.insertId);
+                        console.log('👤 User ID used:', userId); // ✅ Log the user ID for debugging
                     }
                 }
             );
         } else {
             console.log('📝 Translation completed without database insertion');
         }
-
         res.json(responseData);
         
     } catch (err) {

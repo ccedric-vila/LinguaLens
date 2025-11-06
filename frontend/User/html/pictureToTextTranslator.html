@@ -1304,6 +1304,52 @@
         font-size: 14px;
       }
     }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP&family=Noto+Sans+KR&family=Noto+Sans+SC&display=swap');
+    .extracted-text {
+      font-variant-numeric: proportional-nums;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Animation for object cards */
+    .object-card {
+      animation: fadeInUp 0.3s ease-out forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Confidence badges */
+    .confidence-badge.high {
+      box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+    }
+
+    .confidence-badge.medium {
+      box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+    }
+
+    .confidence-badge.low {
+      box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+    }
+
+    /* Loading animation */
+    .loading-card {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>

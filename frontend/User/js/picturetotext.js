@@ -1,4 +1,4 @@
-// public/js/picturetotext.js - ENHANCED VERSION
+// public/js/picturetotext.js - ENHANCED FOR ALL LANGUAGES
 const uploadArea = document.getElementById('uploadArea');
 const imageInput = document.getElementById('imageInput');
 const imagePreview = document.getElementById('imagePreview');
@@ -21,7 +21,30 @@ const combinedResult = document.getElementById('combinedResult');
 // Copy buttons
 const copyTextBtn = document.getElementById('copyTextBtn');
 const copyAllBtn = document.getElementById('copyAllBtn');
+// Add this function at the top of the file (after the currentAnalysisData declaration)
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userid');
+    
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (userId) {
+        headers['X-User-ID'] = userId;
+    }
+    
+    console.log('🔐 Auth headers:', { token: !!token, userId: userId });
+    return headers;
+}
 
+// Then modify the fetch request in handleUpload function:
+const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+    headers: getAuthHeaders() // ✅ Add auth headers
+});
 let currentAnalysisData = null;
 
 // Initialize button state
@@ -137,56 +160,74 @@ async function handleUpload() {
   const selectedLanguage = languageSelect.value;
   formData.append('language', selectedLanguage);
 
+  console.log('🚀 Starting analysis...');
+  console.log('📁 File:', imageInput.files[0].name);
+  console.log('🌐 Language:', selectedLanguage);
+
   const startTime = Date.now();
 
   try {
-    statusText.textContent = 'Uploading image...';
+    statusText.textContent = 'Uploading and analyzing image...';
     languageText.textContent = languageSelect.options[languageSelect.selectedIndex].text;
     
     const response = await fetch('http://localhost:3000/api/picturetotext/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      credentials: 'include' 
     });
 
-    const data = await response.json();
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     if (!response.ok) {
-      throw new Error(data.error || `Upload failed: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Upload failed: ${response.status}`);
     }
+
+    const data = await response.json();
+    
+    console.log('✅ Analysis complete!');
+    console.log('📊 Response:', data);
 
     // Store analysis data
     currentAnalysisData = data;
     
     // Update processing info
-    timeText.textContent = `${elapsed}s`;
+    timeText.textContent = data.processingTime || `${elapsed}s`;
     engineText.textContent = data.ocr?.engine || 'Unknown';
     languageText.textContent = data.languageUsed || selectedLanguage;
     objectsCount.textContent = data.objects?.count || 0;
-    statusText.textContent = 'Analysis completed successfully';
+    statusText.textContent = '✅ Analysis completed successfully';
+    
+    // Log OCR results for debugging
+    console.log('📝 Extracted text length:', data.ocr?.text?.length || 0);
+    console.log('💯 Confidence:', data.ocr?.confidence || 0);
+    if (data.ocr?.text) {
+      console.log('📄 Text preview:', data.ocr.text.substring(0, 100) + '...');
+    }
     
     // Display results
     displayResults(data);
     
   } catch (error) {
-    console.error('Upload error:', error);
-    statusText.textContent = 'Analysis failed';
+    console.error('❌ Upload error:', error);
+    statusText.textContent = '❌ Analysis failed';
     timeText.textContent = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
     
     let errorMessage = `Error: ${error.message}\n\n`;
     
     if (error.message.includes('Failed to fetch')) {
-      errorMessage += 'Cannot connect to server. Make sure the backend is running on port 3000.';
+      errorMessage += '⚠️ Cannot connect to server.\n';
+      errorMessage += 'Make sure the backend is running on port 3000.\n\n';
+      errorMessage += 'Try: npm start (in backend directory)';
     } else if (error.message.includes('404')) {
-      errorMessage += 'Server endpoint not found. Check your API routes.';
+      errorMessage += '⚠️ Server endpoint not found.\n';
+      errorMessage += 'Check your API routes are properly configured.';
     } else {
-      errorMessage += 'Please try again with a different image.';
+      errorMessage += '⚠️ Please try again with a different image or check server logs.';
     }
     
     textResult.textContent = errorMessage;
-    
-    // Show error in all result areas
-    objectsGrid.innerHTML = '<div class="object-card">Error during analysis</div>';
+    objectsGrid.innerHTML = '<div class="object-card error-card">❌ Error during analysis</div>';
     objectsDescription.textContent = 'Analysis failed - check server connection';
     combinedResult.textContent = errorMessage;
     
@@ -201,7 +242,7 @@ async function handleUpload() {
 
 function resetResults() {
   textResult.textContent = 'Processing... Please wait.';
-  objectsGrid.innerHTML = '';
+  objectsGrid.innerHTML = '<div class="loading-card">⏳ Analyzing image...</div>';
   objectsDescription.textContent = '';
   combinedResult.textContent = 'Processing...';
   copyTextBtn.disabled = true;
@@ -223,30 +264,116 @@ function showProcessing(show) {
 }
 
 function displayResults(data) {
+  console.log('🎨 Displaying results...');
+  
   // Enable copy buttons
   copyTextBtn.disabled = false;
   copyAllBtn.disabled = false;
   
-  // Display text results
-  if (data.ocr?.text && data.ocr.text.trim().length > 0) {
-    textResult.textContent = data.ocr.text;
-  } else {
-    textResult.textContent = 'No text could be extracted from this image.';
-  }
+  // Display text results with proper Unicode handling
+  displayTextResults(data.ocr);
   
-  // Display object results (limited to 4)
+  // Display object results
   displayObjects(data.objects);
   
   // Display combined results
   displayCombinedResults(data);
   
-  // Switch to combined view by default
-  switchTab('combined');
+  // Switch to appropriate tab based on content
+  if (data.ocr?.text && data.ocr.text.trim().length > 20) {
+    switchTab('text'); // Show text tab if significant text found
+  } else if (data.objects?.count > 0) {
+    switchTab('objects'); // Show objects if no text but objects found
+  } else {
+    switchTab('combined'); // Show combined view otherwise
+  }
+}
+
+function displayTextResults(ocrData) {
+  if (!ocrData || !ocrData.text || ocrData.text.trim().length === 0) {
+    textResult.innerHTML = `
+      <div style="color: #888; text-align: center; padding: 2rem;">
+        ℹ️ No text could be extracted from this image.
+        <br><br>
+        This could mean:
+        <ul style="text-align: left; display: inline-block; margin-top: 1rem;">
+          <li>The image contains no text</li>
+          <li>The text is too small or blurry</li>
+          <li>The language is not supported</li>
+        </ul>
+      </div>
+    `;
+    return;
+  }
+  
+  const text = ocrData.text;
+  const confidence = ocrData.confidence || 0;
+  const engine = ocrData.engine || 'Unknown';
+  
+  // Check if text contains non-Latin characters
+  const hasAsianChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/.test(text);
+  const hasArabicChars = /[\u0600-\u06FF]/.test(text);
+  
+  console.log('📝 Text Analysis:');
+  console.log('   Length:', text.length);
+  console.log('   Has Asian chars:', hasAsianChars);
+  console.log('   Has Arabic chars:', hasArabicChars);
+  console.log('   Confidence:', confidence);
+  
+  // Create result HTML with proper styling for different scripts
+  let resultHTML = '';
+  
+  // Add confidence indicator
+  const confidenceClass = confidence > 70 ? 'high' : confidence > 40 ? 'medium' : 'low';
+  resultHTML += `
+    <div class="confidence-badge ${confidenceClass}" style="
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      background: ${confidence > 70 ? '#d4edda' : confidence > 40 ? '#fff3cd' : '#f8d7da'};
+      color: ${confidence > 70 ? '#155724' : confidence > 40 ? '#856404' : '#721c24'};
+    ">
+      ${confidence > 70 ? '✅' : confidence > 40 ? '⚠️' : '❌'} 
+      Confidence: ${confidence}% (${engine})
+    </div>
+  `;
+  
+  // Add extracted text with proper line breaks and Unicode support
+  resultHTML += `
+    <div class="extracted-text" style="
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: ${hasAsianChars ? "'Noto Sans CJK', 'Malgun Gothic', 'Microsoft YaHei', " : 
+                    hasArabicChars ? "'Arial', 'Tahoma', " : 
+                    "'Segoe UI', "}sans-serif;
+      font-size: ${hasAsianChars ? '1.1rem' : '1rem'};
+      line-height: 1.6;
+      text-align: ${hasArabicChars ? 'right' : 'left'};
+      direction: ${hasArabicChars ? 'rtl' : 'ltr'};
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      border-left: 4px solid #007bff;
+    ">${escapeHtml(text)}</div>
+  `;
+  
+  textResult.innerHTML = resultHTML;
 }
 
 function displayObjects(objectsData) {
   if (!objectsData || objectsData.count === 0) {
-    objectsGrid.innerHTML = '<div class="object-card">No objects detected</div>';
+    objectsGrid.innerHTML = `
+      <div class="object-card no-objects" style="
+        text-align: center;
+        padding: 2rem;
+        color: #888;
+        grid-column: 1 / -1;
+      ">
+        ℹ️ No objects detected in this image
+      </div>
+    `;
     if (objectsDescription) {
       objectsDescription.textContent = 'No prominent objects were detected in this image.';
     }
@@ -255,20 +382,31 @@ function displayObjects(objectsData) {
   
   // Set description
   if (objectsDescription) {
-    objectsDescription.textContent = objectsData.description;
+    objectsDescription.textContent = objectsData.description || 'Objects detected in the image.';
   }
   
   // Clear previous objects
   objectsGrid.innerHTML = '';
   
   // Add object cards (limited to 4)
-  objectsData.detected.slice(0, 4).forEach(obj => {
+  objectsData.detected.slice(0, 4).forEach((obj, index) => {
     const confidencePercent = Math.round(obj.confidence * 100);
     const objectCard = document.createElement('div');
     objectCard.className = 'object-card';
+    objectCard.style.animationDelay = `${index * 0.1}s`;
     objectCard.innerHTML = `
-      <div class="object-name">${obj.name}</div>
-      <div class="object-confidence">${confidencePercent}% confidence</div>
+      <div class="object-icon" style="font-size: 2rem; margin-bottom: 0.5rem;">
+        ${getObjectEmoji(obj.name)}
+      </div>
+      <div class="object-name" style="font-weight: 600; margin-bottom: 0.25rem;">
+        ${obj.name}
+      </div>
+      <div class="object-confidence" style="
+        color: ${confidencePercent > 70 ? '#28a745' : confidencePercent > 40 ? '#ffc107' : '#6c757d'};
+        font-size: 0.9rem;
+      ">
+        ${confidencePercent}% confidence
+      </div>
     `;
     objectsGrid.appendChild(objectCard);
   });
@@ -277,40 +415,98 @@ function displayObjects(objectsData) {
 function displayCombinedResults(data) {
   let combinedText = '';
   
-  // Add processing info
-  combinedText += `Processing Time: ${data.processingTime}\n`;
-  combinedText += `OCR Engine: ${data.ocr?.engine || 'Unknown'}\n`;
-  combinedText += `Language: ${data.languageUsed || 'Auto-detect'}\n`;
-  combinedText += `Confidence: ${data.ocr?.confidence ? Math.round(data.ocr.confidence) + '%' : 'N/A'}\n\n`;
+  // Header section
+  combinedText += '═══════════════════════════════════════\n';
+  combinedText += '          IMAGE ANALYSIS REPORT\n';
+  combinedText += '═══════════════════════════════════════\n\n';
   
-  // Add object detection results (limited to 4)
+  // Processing info
+  combinedText += '📊 PROCESSING DETAILS:\n';
+  combinedText += '─────────────────────────────────────\n';
+  combinedText += `⏱️  Processing Time: ${data.processingTime}\n`;
+  combinedText += `🔧 OCR Engine: ${data.ocr?.engine || 'Unknown'}\n`;
+  combinedText += `🌐 Language: ${data.languageUsed || 'Auto-detect'}\n`;
+  combinedText += `💯 Confidence: ${data.ocr?.confidence ? data.ocr.confidence + '%' : 'N/A'}\n`;
+  combinedText += `📁 Filename: ${data.filename || 'Unknown'}\n`;
+  combinedText += `📋 Analysis Type: ${data.analysisType || 'standard'}\n\n`;
+  
+  // Object detection results
   if (data.objects?.count > 0) {
-    combinedText += `IMAGE CONTENT:\n`;
+    combinedText += '🔍 DETECTED OBJECTS:\n';
+    combinedText += '─────────────────────────────────────\n';
     combinedText += `${data.objects.description}\n\n`;
     
-    combinedText += `DETECTED OBJECTS (Top ${Math.min(data.objects.count, 4)}):\n`;
-    data.objects.detected.slice(0, 4).forEach(obj => {
+    combinedText += `Found ${data.objects.count} object(s):\n`;
+    data.objects.detected.slice(0, 4).forEach((obj, index) => {
       const confidencePercent = Math.round(obj.confidence * 100);
-      combinedText += `- ${obj.name} ${confidencePercent}% confidence\n`;
+      combinedText += `  ${index + 1}. ${obj.name} - ${confidencePercent}% confidence\n`;
     });
-    combinedText += `\n`;
+    combinedText += '\n';
   } else {
-    combinedText += `IMAGE CONTENT:\nNo objects detected\n\n`;
+    combinedText += '🔍 DETECTED OBJECTS:\n';
+    combinedText += '─────────────────────────────────────\n';
+    combinedText += 'No objects detected\n\n';
   }
   
-  // Add extracted text
-  combinedText += `EXTRACTED TEXT:\n`;
+  // Extracted text
+  combinedText += '📝 EXTRACTED TEXT:\n';
+  combinedText += '─────────────────────────────────────\n';
   if (data.ocr?.text && data.ocr.text.trim().length > 0) {
     combinedText += data.ocr.text;
   } else {
     combinedText += 'No text could be extracted from this image.';
   }
   
+  combinedText += '\n\n═══════════════════════════════════════\n';
+  combinedText += '              END OF REPORT\n';
+  combinedText += '═══════════════════════════════════════';
+  
   combinedResult.textContent = combinedText;
+}
+
+// Helper function to get emoji for objects
+function getObjectEmoji(objectName) {
+  const emojiMap = {
+    'person': '👤',
+    'car': '🚗',
+    'dog': '🐕',
+    'cat': '🐈',
+    'bird': '🐦',
+    'chair': '🪑',
+    'table': '🪑',
+    'book': '📖',
+    'phone': '📱',
+    'laptop': '💻',
+    'cup': '☕',
+    'bottle': '🍾',
+    'food': '🍕',
+    'tree': '🌳',
+    'flower': '🌸',
+    'building': '🏢',
+    'clock': '🕐',
+    'bag': '👜',
+    'shoe': '👟',
+    'hat': '🎩'
+  };
+  
+  const key = objectName.toLowerCase();
+  for (let [name, emoji] of Object.entries(emojiMap)) {
+    if (key.includes(name)) return emoji;
+  }
+  return '📦'; // Default icon
+}
+
+// Helper function to escape HTML for safe display
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Tab switching function
 function switchTab(tabName) {
+  console.log('🔄 Switching to tab:', tabName);
+  
   // Update tab active states
   document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.remove('active');
@@ -324,15 +520,22 @@ function switchTab(tabName) {
   if (activeTab) {
     activeTab.classList.add('active');
   }
-  document.getElementById(tabName + 'Tab').classList.add('active');
+  
+  const tabContent = document.getElementById(tabName + 'Tab');
+  if (tabContent) {
+    tabContent.classList.add('active');
+  }
 }
 
 // Copy text functionality
 copyTextBtn.addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(textResult.textContent);
+    const textToCopy = textResult.textContent || textResult.innerText;
+    await navigator.clipboard.writeText(textToCopy);
     showCopyFeedback(copyTextBtn);
+    console.log('✅ Text copied to clipboard');
   } catch (err) {
+    console.error('❌ Failed to copy:', err);
     alert('Failed to copy text to clipboard');
   }
 });
@@ -340,9 +543,12 @@ copyTextBtn.addEventListener('click', async () => {
 // Copy all functionality
 copyAllBtn.addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(combinedResult.textContent);
+    const textToCopy = combinedResult.textContent || combinedResult.innerText;
+    await navigator.clipboard.writeText(textToCopy);
     showCopyFeedback(copyAllBtn);
+    console.log('✅ Combined results copied to clipboard');
   } catch (err) {
+    console.error('❌ Failed to copy:', err);
     alert('Failed to copy text to clipboard');
   }
 });
@@ -363,4 +569,7 @@ window.switchTab = switchTab;
 
 // Initialize
 resetResults();
-console.log('Enhanced OCR Frontend initialized - ready for image upload!');
+console.log('🚀 Enhanced OCR Frontend initialized!');
+console.log('✅ Multi-language support enabled');
+console.log('✅ Unicode display support enabled');
+console.log('📋 Ready for image upload!');

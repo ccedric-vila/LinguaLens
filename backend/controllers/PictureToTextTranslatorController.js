@@ -447,46 +447,49 @@ const extractTranslateAndDetect = async (req, res) => {
       }
     };
 
-    // ✅ Step 7: Save to database using ONLY image_analysis_translator table
-    const userId = req.user?.id || null; // Use NULL if not logged in
+// In the extractTranslateAndDetect function, modify the database insertion part:
 
-    // Use Promise-based approach for better error handling
-    const saveToDatabase = () => {
-      return new Promise((resolve, reject) => {
-        // Insert into image_analysis_translator table
-        const analysisQuery = `
-          INSERT INTO image_analysis_translator 
-          (user_id, filename, extracted_text, translated_text, objects_json, 
-           source_language, target_language, processing_time, confidence_score, analysis_type) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
+// ✅ Step 7: Save to database using ONLY image_analysis_translator table
+const userId = req.extractedUserId || null; // ✅ Enhanced user ID extraction
 
-        connection.query(
-          analysisQuery,
-          [
-            userId,
-            req.file.originalname,
-            ocrResult.text || '',
-            translationResult.translated || '',
-            JSON.stringify(objectResult.objects || []),
-            detectedLang,
-            targetLanguage,
-            `${elapsed}s`,
-            ocrResult.confidence || 0,
-            textDetection.hasText ? 'text_heavy' : 'image_heavy'
-          ],
-          (err, results) => {
-            if (err) {
-              console.error('❌ Failed to save to image_analysis_translator:', err);
-              return reject(err);
-            }
-            
-            console.log('💾 Saved to image_analysis_translator with ID:', results.insertId);
-            resolve();
-          }
-        );
-      });
-    };
+// Use Promise-based approach for better error handling
+const saveToDatabase = () => {
+  return new Promise((resolve, reject) => {
+    // Insert into image_analysis_translator table
+    const analysisQuery = `
+      INSERT INTO image_analysis_translator 
+      (user_id, filename, extracted_text, translated_text, objects_json, 
+       source_language, target_language, processing_time, confidence_score, analysis_type) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    connection.query(
+      analysisQuery,
+      [
+        userId, // ✅ Now properly checks multiple sources
+        req.file.originalname,
+        ocrResult.text || '',
+        translationResult.translated || '',
+        JSON.stringify(objectResult.objects || []),
+        detectedLang,
+        targetLanguage,
+        `${elapsed}s`,
+        ocrResult.confidence || 0,
+        textDetection.hasText ? 'text_heavy' : 'image_heavy'
+      ],
+      (err, results) => {
+        if (err) {
+          console.error('❌ Failed to save to image_analysis_translator:', err);
+          return reject(err);
+        }
+        
+        console.log('💾 Saved to image_analysis_translator with ID:', results.insertId);
+        console.log('👤 User ID used:', userId); // ✅ Log the user ID for debugging
+        resolve();
+      }
+    );
+  });
+};
 
     // Execute database save (non-blocking)
     saveToDatabase().catch(err => {
